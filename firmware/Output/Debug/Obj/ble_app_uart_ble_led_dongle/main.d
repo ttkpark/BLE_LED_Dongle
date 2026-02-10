@@ -1,13 +1,16 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\main.c \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/math.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_FP.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_ConfDefaults.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Conf.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Arm_Conf.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_ConfDefaults.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Conf.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Arm_Conf.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_version.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_compiler.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_gcc.h \
@@ -24,7 +27,6 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stddef.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf_peripherals.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810_peripherals.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_glue.h \
@@ -58,6 +60,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_errors.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/scheduler/app_scheduler.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \

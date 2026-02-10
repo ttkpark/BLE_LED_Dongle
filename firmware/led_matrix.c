@@ -9,54 +9,87 @@
 #include "nrf_log.h"
 #include "led_matrix.h"
 
+/* Disable SysTick during WS2812 output so 1ms IRQ doesn't disturb timing */
+#define SYSTICK_CTRL         (*(volatile uint32_t *)0xE000E010)
+#define SYSTICK_CTRL_ENABLE  (1u << 0)
+
 /* GRB buffer for 144 LEDs */
 static uint8_t g_fb[MATRIX_N * 3];
 
 /*
- * Panel timing (non-inverted): at 64MHz, 1 cycle = 15.625ns.
- * T0H 220~380ns, T1H 580ns~1us, T0L/T1L 580ns~1us, RES >280us.
+ * WS2812 timing.
+ *
+ * --- Assembly trial-and-error (시행착오) ---
+ * - set/reset were not inlined (BL in disasm) → return + BL added ~10cy, so T0H was always long.
+ * - T0H with 2 NOPs (no inline): total ~12cy but 0 not recognized → LED all white.
+ * - T0H with 4 NOPs (no inline): ~14cy, over 380ns spec; with 3 NOPs still >380ns.
+ * - NOP 많이 줄였을 때 초록 나옴 → shorter timing was correct direction.
+ * - Fix: __attribute__((always_inline)) on matrix_pin_set/reset → no BL; High = (STR ~4cy) + NOPs + (STR ~4cy).
+ * - T0H = 2 NOPs → ~10cy ~312ns (in spec 220~380ns). T1H = 16 NOPs. T0L = 16 NOPs (T0H+T0L>=40cy). T1L = 2 NOPs (min for T1H+T1L>=40cy).
+ * - In disasm: count from STR 0x0508 (OUTSET) to STR 0x050C (OUTCLR) = high; STR 0x050C to next STR 0x0508 = low. 1cy @ 32MHz = 31.25ns.
  */
-static inline void delay_cycles(uint32_t n)
+void delay_cycles(uint32_t n)
 {
     while (n--) { __NOP(); __NOP(); }
 }
 
-static void ws2812_send_byte(uint8_t byte)
+static inline __attribute__((always_inline)) void matrix_pin_set(uint32_t pin)
+{
+    NRF_P0->OUTSET = (1UL << pin);
+}
+
+static inline __attribute__((always_inline)) void matrix_pin_reset(uint32_t pin)
+{
+    NRF_P0->OUTCLR = (1UL << pin);
+}
+
+/* Exact NOP counts for binary-level timing (tune in disasm). 1 NOP = 1 cycle. */
+#define _NOP1()   __NOP()
+#define _NOP2()   _NOP1(); _NOP1()
+#define _NOP3()   _NOP2(); _NOP1()
+#define _NOP4()   _NOP2(); _NOP2()
+#define _NOP8()   _NOP4(); _NOP4()
+#define _NOP16()  _NOP8(); _NOP8()
+/*
+ * Inlined: High = (STR OUTSET ~4cy) + NOPs + (STR OUTCLR ~4cy). Low = (OUTCLR ~4cy) + NOPs + (byte<<=1, loop, SET ~14cy).
+ * T0H+T0L >= 40cy, T1H+T1L >= 40cy; T0L/T1L spec 580ns~1us (19~32cy). Minimize LOW: T0L needs 30cy total so 30-14=16 NOPs; T1L needs 16cy total so 2 NOPs.
+ */
+/* Final working set (disasm tuning): T0H=2, T1H=16, T0L=16, T1L=2 NOPs + inlined set/reset. */
+#define WS2812_EMIT_NOP_T0H()  _NOP2()           /* high '0' */
+#define WS2812_EMIT_NOP_T1H()  _NOP8(); _NOP8()  /* high '1' */
+#define WS2812_EMIT_NOP_T0L()  _NOP8(); _NOP8()  /* low '0' */
+#define WS2812_EMIT_NOP_T1L()  _NOP2()           /* low '1' */
+
+
+void ws2812_send_byte(uint8_t byte)
 {
     uint32_t pin = MATRIX_DATA_PIN;
     for (int8_t b = 7; b >= 0; b--)
     {
-        uint32_t bit1 = (byte & (1u << b)) ? 1 : 0;
-#if WS2812_INVERT_DATA
-        bit1 = 1u - bit1;
-#endif
-        if (bit1)
+        matrix_pin_set(pin);
+        if (byte & 0x80)
         {
-            NRF_P0->OUTSET = (1UL << pin);
-            delay_cycles(26);   /* T1H 580ns~1us: ~0.8us */
-            NRF_P0->OUTCLR = (1UL << pin);
-            delay_cycles(26);   /* T1L 580ns~1us */
+            WS2812_EMIT_NOP_T1H();
+            matrix_pin_reset(pin);
+            WS2812_EMIT_NOP_T1L();
         }
         else
         {
-            NRF_P0->OUTSET = (1UL << pin);
-            delay_cycles(10);   /* T0H 220~380ns: ~300ns */
-            NRF_P0->OUTCLR = (1UL << pin);
-            delay_cycles(26);   /* T0L 580ns~1us */
+            WS2812_EMIT_NOP_T0H();
+            matrix_pin_reset(pin);
+            WS2812_EMIT_NOP_T0L();
         }
+        byte <<= 1;
     }
 }
 
-/* RES frame unit: low voltage time >280us. 280us*64 = 17920 cycles. */
-static void ws2812_send_reset(void)
+/* RTE: end of transmission = low pulse >280us. Hold data line low. */
+void ws2812_send_reset(void)
 {
     uint32_t pin = MATRIX_DATA_PIN;
-#if WS2812_INVERT_DATA
-    NRF_P0->OUTSET = (1UL << pin);
-#else
-    NRF_P0->OUTCLR = (1UL << pin);
-#endif
-    for (volatile uint32_t i = 0; i < 18000u; i++) { __NOP(); }  /* >280us */
+    matrix_pin_reset(pin);
+    for (volatile uint32_t i = 0; i < WS2812_RES_NOP; i++) { __NOP(); }
+    /* Leave pin low until next frame. */
 }
 
 void matrix_set_pixel(uint8_t row, uint8_t col, uint8_t r, uint8_t g, uint8_t b)
@@ -102,16 +135,22 @@ void matrix_fill(uint8_t r, uint8_t g, uint8_t b)
 
 void matrix_show(void)
 {
-    uint32_t basepri;
-    nrf_gpio_cfg_output(MATRIX_DATA_PIN);
-    ws2812_send_reset();
-    /* Disable interrupts during WS2812 bit-bang so timing is not disturbed */
-    basepri = __get_BASEPRI();
-    __set_BASEPRI(1 << 6);   /* mask all configurable exceptions */
+    uint32_t ctrl = SYSTICK_CTRL;
+    SYSTICK_CTRL = ctrl & ~SYSTICK_CTRL_ENABLE;
     for (uint16_t i = 0; i < sizeof(g_fb); i++)
         ws2812_send_byte(g_fb[i]);
-    __set_BASEPRI(basepri);
     ws2812_send_reset();
+    SYSTICK_CTRL = ctrl;
+    NRF_LOG_INFO("matrix frame sent");
+}
 
-    NRF_LOG_INFO("matrix frame sent (12x12 X)");
+void matrix_delay_1sec(void)
+{
+    delay_cycles(DELAY_1SEC_CYCLES);
+}
+
+void matrix_update_once(uint8_t dim)
+{
+    matrix_fill(dim, dim, dim);
+    matrix_show();
 }
