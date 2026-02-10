@@ -199,35 +199,144 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
     }
 }
 
+/* Check if SoftDevice is present in flash */
+static bool check_softdevice_present(void)
+{
+    // SoftDevice typically starts at 0x0 with a specific header
+    // Check for SoftDevice signature at address 0x0
+    volatile uint32_t *flash_start = (volatile uint32_t *)0x0;
+    uint32_t first_word = flash_start[0];
+    uint32_t second_word = flash_start[1];
+    
+    // SoftDevice usually has non-zero, non-0xFFFFFFFF values at start
+    // If flash is erased (0xFFFFFFFF) or all zeros, SoftDevice is likely missing
+    if (first_word == 0xFFFFFFFF || first_word == 0x00000000)
+    {
+        NRF_LOG_ERROR("SoftDevice not detected at 0x0 (flash appears erased)");
+        NRF_LOG_ERROR("First word: 0x%08X, Second word: 0x%08X", first_word, second_word);
+        return false;
+    }
+    
+    NRF_LOG_INFO("SoftDevice signature found at 0x0: 0x%08X 0x%08X", first_word, second_word);
+    
+    // Additional check: verify SoftDevice vector table
+    // SoftDevice should have a valid vector table at 0x0
+    volatile uint32_t *vectors = (volatile uint32_t *)0x0;
+    uint32_t stack_ptr = vectors[0];      // Initial stack pointer
+    uint32_t reset_handler = vectors[1];  // Reset handler is at offset 4 (index 1)
+    
+    NRF_LOG_INFO("Vector table: SP=0x%08X, Reset=0x%08X", stack_ptr, reset_handler);
+    
+    // Check if reset handler points to a reasonable address
+    // SoftDevice reset handler should be in the range 0x100-0x19000 (SoftDevice flash area)
+    // Note: 0x00000A81 (2689) is actually valid - it's in the SoftDevice range
+    if (reset_handler == 0x00000000 || reset_handler == 0xFFFFFFFF)
+    {
+        NRF_LOG_ERROR("SoftDevice vector table is INVALID: Reset handler = 0x%08X", reset_handler);
+        NRF_LOG_ERROR("This indicates SoftDevice is corrupted or not properly flashed!");
+        NRF_LOG_ERROR("Please re-flash SoftDevice S112 to address 0x0");
+        NRF_LOG_FLUSH();
+        return false;
+    }
+    else if (reset_handler < 0x100 || reset_handler > 0x19000)
+    {
+        NRF_LOG_WARNING("SoftDevice vector table may be invalid: Reset handler = 0x%08X", reset_handler);
+        NRF_LOG_WARNING("Expected range: 0x100-0x19000 (SoftDevice flash area)");
+        NRF_LOG_FLUSH();
+        // Don't return false here, but log warning
+    }
+    else
+    {
+        NRF_LOG_INFO("SoftDevice vector table looks valid: Reset handler = 0x%08X", reset_handler);
+    }
+    
+    return true;
+}
+
 /* BLE stack initialization */
 static bool ble_stack_init(void)
 {
     uint32_t err_code;
 
-    NRF_LOG_INFO("Requesting SoftDevice enable...");
-    NRF_LOG_FLUSH();
-    
-    // Check if SoftDevice is already enabled
-    // If not, this will trigger SVC call which may cause Hard Fault if SoftDevice is missing
-    err_code = nrf_sdh_enable_request();
-    if (err_code != NRF_SUCCESS)
+    // First check if SoftDevice is present before attempting to enable
+    if (!check_softdevice_present())
     {
-        NRF_LOG_ERROR("SoftDevice enable request failed: 0x%08X", err_code);
-        NRF_LOG_ERROR("SoftDevice may not be flashed at 0x0");
+        NRF_LOG_ERROR("SoftDevice not found in flash!");
+        NRF_LOG_ERROR("Please flash SoftDevice S112 to address 0x0");
+        NRF_LOG_ERROR("File: s112_nrf52_7.2.0_softdevice.hex");
         NRF_LOG_FLUSH();
         return false;
     }
-    NRF_LOG_INFO("SoftDevice enable requested");
+
+    NRF_LOG_INFO("Requesting SoftDevice enable...");
+    NRF_LOG_FLUSH();
+    
+    // Log clock configuration before enabling
+    NRF_LOG_INFO("Clock config: LF_SRC=%d, LF_ACCURACY=%d", 
+                 NRF_SDH_CLOCK_LF_SRC, NRF_SDH_CLOCK_LF_ACCURACY);
+    NRF_LOG_FLUSH();
+    
+    // This will trigger SVC call - if SoftDevice is missing, we'll get stuck here
+    // The SVC call itself may hang if SoftDevice can't initialize (e.g., 32MHz crystal missing)
+    NRF_LOG_INFO("Calling nrf_sdh_enable_request() - this may hang if 32MHz crystal is missing");
+    NRF_LOG_INFO("If stuck here, SoftDevice may be waiting for 32MHz crystal to stabilize");
+    NRF_LOG_FLUSH();
+    
+    // Flush all logs before SVC call (may not return)
+    NRF_LOG_FLUSH();
+    SEGGER_RTT_WriteString(0, "\r\n[Before SVC] About to call nrf_sdh_enable_request()\r\n");
+    
+    err_code = nrf_sdh_enable_request();
+    
+    // If we get here, SVC call completed
+    SEGGER_RTT_WriteString(0, "\r\n[After SVC] nrf_sdh_enable_request() returned\r\n");
+    NRF_LOG_INFO("nrf_sdh_enable_request() returned: 0x%08X", err_code);
+    NRF_LOG_FLUSH();
+    
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("SoftDevice enable request failed: 0x%08X", err_code);
+        NRF_LOG_ERROR("Error meanings:");
+        NRF_LOG_ERROR("  0x00000001 = Invalid parameter");
+        NRF_LOG_ERROR("  0x00000002 = Invalid state");
+        NRF_LOG_ERROR("  0x00000003 = Out of memory");
+        NRF_LOG_ERROR("  0x00000004 = Not supported");
+        NRF_LOG_ERROR("  0x00000005 = Internal error");
+        NRF_LOG_ERROR("  0x00000006 = Invalid length");
+        NRF_LOG_FLUSH();
+        return false;
+    }
+    NRF_LOG_INFO("SoftDevice enable requested successfully");
     NRF_LOG_FLUSH();
 
-    // Wait for SoftDevice to initialize (with timeout)
+    // Wait for SoftDevice to initialize
+    // With APPSH dispatch model, we need to process scheduler events
+    NRF_LOG_INFO("Waiting for SoftDevice to initialize...");
+    NRF_LOG_FLUSH();
+    
+    // Process scheduler events while waiting for SoftDevice
     volatile int timeout = 1000000;
     while (timeout-- > 0)
     {
-        // Check if SoftDevice is enabled by trying to access it
-        // This is a simple delay - actual check would require SoftDevice API
+        app_sched_execute();
+        if (nrf_sdh_is_enabled())
+        {
+            NRF_LOG_INFO("SoftDevice is now enabled");
+            NRF_LOG_FLUSH();
+            break;
+        }
         __NOP();
     }
+    
+    if (!nrf_sdh_is_enabled())
+    {
+        NRF_LOG_ERROR("SoftDevice enable timeout - may be stuck");
+        NRF_LOG_FLUSH();
+        return false;
+    }
+    
+    NRF_LOG_INFO("SoftDevice initialization completed");
+    NRF_LOG_FLUSH();
 
     uint32_t ram_start = 0;
     NRF_LOG_INFO("Setting BLE default config...");
@@ -396,6 +505,15 @@ int main(void)
     APP_ERROR_CHECK(err_code);
     #endif
 
+    /* BLE initialization - Set to 0 to enable BLE, 1 to disable for testing */
+    #define TEST_WITHOUT_SOFTDEVICE 0  // Change to 1 to test without BLE
+    
+    #if TEST_WITHOUT_SOFTDEVICE
+    NRF_LOG_INFO("=== TEST MODE: Running WITHOUT SoftDevice/BLE ===");
+    NRF_LOG_INFO("LED matrix and timer should work normally");
+    NRF_LOG_INFO("32MHz crystal test: Check if LED updates smoothly");
+    NRF_LOG_FLUSH();
+    #else
     /* Try to initialize BLE - if 32MHz crystal is missing, this will fail */
     NRF_LOG_INFO("Attempting BLE initialization...");
     NRF_LOG_FLUSH();
@@ -431,6 +549,7 @@ int main(void)
         NRF_LOG_ERROR("  3) Power supply issues");
         NRF_LOG_FLUSH();
     }
+    #endif
 
     timers_init();
 
@@ -441,6 +560,8 @@ int main(void)
     while (1)
     {
         app_sched_execute();
+        #if !TEST_WITHOUT_SOFTDEVICE
         nrf_pwr_mgmt_run();
+        #endif
     }
 }

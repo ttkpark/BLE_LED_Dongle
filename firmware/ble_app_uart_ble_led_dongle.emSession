@@ -26,8 +26,6 @@
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
-  <ProjectSessionItem path=""/>
-  <ProjectSessionItem path=""/>
  </Project>
  <Register1>
   <RegisterWindow invisibleNodes="" visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/MSP;CPU/PSP;CPU/PRIMASK;CPU/BASEPRI;CPU/FAULTMASK;CPU/CONTROL;CPU/internal" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context" name="ble_app_uart_ble_led_dongle_Debug" decimalNodes="" octalNodes="" unsignedNodes=""/>
@@ -61,7 +59,7 @@
  </Watch4>
  <Files>
   <SessionOpenFile windowGroup="DockEditLeft" x="36" y="57" useTextEdit="1" path="led_matrix.h" left="0" top="32" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="205" useTextEdit="1" path="main.c" left="0" selected="1" top="212" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="205" useTextEdit="1" path="main.c" left="0" selected="1" top="205" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="12" y="71" useTextEdit="1" path="led_matrix.c" left="0" top="62" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="325" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sdm.h" left="0" top="303" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="213" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.c" left="0" top="191" codecName="Default"/>

@@ -59,4 +59,5 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/nrf_sdh.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_internal.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/scheduler/app_scheduler.h
