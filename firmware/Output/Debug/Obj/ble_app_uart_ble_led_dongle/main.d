@@ -1,16 +1,17 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\main.c \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\main.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/math.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_FP.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_ConfDefaults.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Conf.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Arm_Conf.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_version.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_compiler.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_gcc.h \
@@ -24,7 +25,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_gpio.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/nrfx.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_config.h \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stddef.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf_peripherals.h \
@@ -63,7 +64,6 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/scheduler/app_scheduler.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_os.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_macros.h \
@@ -80,6 +80,41 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Conf.h
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Conf.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section_iter.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh_ble.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_err.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gap.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_hci.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_ranges.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_types.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gatt.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gattc.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gatts.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_gatt/nrf_ble_gatt.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gatt.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_qwr/nrf_ble_qwr.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_types.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gap.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_advertising/ble_advertising.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gattc.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_advdata.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_params.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_services/ble_nus/ble_nus.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_state.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic/nrf_atomic.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/pwr_mgmt/nrf_pwr_mgmt.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/timer/app_timer.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/sortlist/nrf_sortlist.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/pca10040.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.h

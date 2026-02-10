@@ -27,7 +27,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/nrf_atfifo.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf52/nrf_mbr.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_svc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic_fifo/nrf_atfifo.h \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nrf_assert.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_errors.h \

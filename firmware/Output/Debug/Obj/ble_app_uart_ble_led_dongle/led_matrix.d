@@ -1,5 +1,5 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.c \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.c \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
@@ -21,7 +21,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_gpio.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/nrfx.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_config.h \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stddef.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
@@ -69,4 +69,4 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.h
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h
