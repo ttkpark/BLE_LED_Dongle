@@ -27,6 +27,7 @@
 #include "nrf_pwr_mgmt.h"
 #include "app_timer.h"
 #include "bsp.h"
+#include "nrfx_clock.h"
 
 #define SERIAL_RX_BUF_SIZE   256
 #define TICKS_PER_LED_UPDATE 1000   /* 1s = 1000 × 1ms */
@@ -136,6 +137,63 @@ void SysTick_Handler(void)
 {
     uint32_t err = app_sched_event_put(NULL, 0, sm_tick_handler);
     (void)err;
+}
+
+/* Clock event handler (not used, but required by nrfx_clock_init) */
+static void clock_event_handler(nrfx_clock_evt_type_t event)
+{
+    // Not used in this simple case - we poll for status instead
+    (void)event;
+}
+
+/* Start 32MHz external crystal before SoftDevice initialization */
+static void start_32mhz_crystal_before_softdevice(void)
+{
+    NRF_LOG_INFO("Starting 32MHz external crystal (HFXO) before SoftDevice init...");
+    NRF_LOG_FLUSH();
+    
+    // Initialize nrfx_clock driver
+    nrfx_err_t err = nrfx_clock_init(clock_event_handler);
+    if (err != NRFX_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrfx_clock_init failed: 0x%08X", err);
+        NRF_LOG_FLUSH();
+        return;
+    }
+    
+    // Start HFXO (32MHz external crystal)
+    nrfx_clock_hfclk_start();
+    
+    // Wait for HFXO to be ready (SoftDevice needs this)
+    volatile uint32_t timeout = 1000000;  // 1 second timeout
+    while (!nrfx_clock_hfclk_is_running() && timeout-- > 0)
+    {
+        __NOP();
+    }
+    
+    if (nrfx_clock_hfclk_is_running())
+    {
+        // Verify it's using XTAL, not RC
+        uint32_t hfclkstat = NRF_CLOCK->HFCLKSTAT;
+        bool is_xtal = (hfclkstat & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
+        
+        if (is_xtal)
+        {
+            NRF_LOG_INFO("32MHz external crystal (HFXO) is now running - ready for SoftDevice");
+            NRF_LOG_FLUSH();
+        }
+        else
+        {
+            NRF_LOG_WARNING("HFCLK is running but source is RC, not XTAL!");
+            NRF_LOG_FLUSH();
+        }
+    }
+    else
+    {
+        NRF_LOG_ERROR("32MHz crystal failed to start! SoftDevice may fail to initialize");
+        NRF_LOG_ERROR("Check: 1) Crystal connected? 2) Load capacitors? 3) Power supply?");
+        NRF_LOG_FLUSH();
+    }
 }
 
 static void timers_init(void)
@@ -268,6 +326,11 @@ static bool ble_stack_init(void)
         return false;
     }
 
+    // CRITICAL: Start 32MHz crystal BEFORE SoftDevice initialization
+    // SoftDevice requires 32MHz external crystal (HFXO) for BLE operation
+    // If HFCLK is using RC (64MHz), SoftDevice initialization will fail
+    start_32mhz_crystal_before_softdevice();
+    
     NRF_LOG_INFO("Requesting SoftDevice enable...");
     NRF_LOG_FLUSH();
     
@@ -276,21 +339,57 @@ static bool ble_stack_init(void)
                  NRF_SDH_CLOCK_LF_SRC, NRF_SDH_CLOCK_LF_ACCURACY);
     NRF_LOG_FLUSH();
     
+    // Check HFCLK status before SoftDevice initialization
+    // This helps diagnose if 32MHz crystal is ready
+    uint32_t hfclkstat_before = NRF_CLOCK->HFCLKSTAT;
+    bool hfclk_running_before = (hfclkstat_before & CLOCK_HFCLKSTAT_STATE_Msk) == (CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos);
+    bool hfclk_xtal_before = (hfclkstat_before & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
+    
+    NRF_LOG_INFO("HFCLK status before SoftDevice init: 0x%08X", hfclkstat_before);
+    NRF_LOG_INFO("HFCLK running: %s, Source: %s", 
+                 hfclk_running_before ? "Yes" : "No",
+                 hfclk_xtal_before ? "XTAL (32MHz)" : "RC (64MHz)");
+    
+    if (!hfclk_xtal_before)
+    {
+        NRF_LOG_ERROR("WARNING: HFCLK is not using 32MHz XTAL! SoftDevice may fail!");
+        NRF_LOG_ERROR("Expected: XTAL (32MHz), Actual: RC (64MHz)");
+        NRF_LOG_FLUSH();
+    }
+    NRF_LOG_FLUSH();
+    
     // This will trigger SVC call - if SoftDevice is missing, we'll get stuck here
-    // The SVC call itself may hang if SoftDevice can't initialize (e.g., 32MHz crystal missing)
-    NRF_LOG_INFO("Calling nrf_sdh_enable_request() - this may hang if 32MHz crystal is missing");
-    NRF_LOG_INFO("If stuck here, SoftDevice may be waiting for 32MHz crystal to stabilize");
+    // The SVC call itself may hang if SoftDevice can't initialize
+    // NOTE: 32MHz crystal is now confirmed running, so if we hang here, it's a SoftDevice issue
+    NRF_LOG_INFO("Calling nrf_sdh_enable_request() - this may hang if SoftDevice has issues");
+    NRF_LOG_INFO("32MHz crystal is confirmed running, so hang indicates SoftDevice problem");
     NRF_LOG_FLUSH();
     
     // Flush all logs before SVC call (may not return)
     NRF_LOG_FLUSH();
     SEGGER_RTT_WriteString(0, "\r\n[Before SVC] About to call nrf_sdh_enable_request()\r\n");
+    SEGGER_RTT_WriteString(0, "[WARNING] If stuck here, SoftDevice initialization is failing\r\n");
+    SEGGER_RTT_WriteString(0, "[WARNING] This will block forever - consider using TEST_WITHOUT_SOFTDEVICE=1\r\n");
     
+    // CRITICAL: This SVC call may block forever if SoftDevice has issues
+    // There's no way to timeout or cancel this call once it starts
+    // If it hangs, the only solution is to skip SoftDevice initialization
     err_code = nrf_sdh_enable_request();
     
-    // If we get here, SVC call completed
+    // If we get here, SVC call completed (good sign!)
     SEGGER_RTT_WriteString(0, "\r\n[After SVC] nrf_sdh_enable_request() returned\r\n");
     NRF_LOG_INFO("nrf_sdh_enable_request() returned: 0x%08X", err_code);
+    NRF_LOG_FLUSH();
+    
+    // Check HFCLK status after SVC call
+    uint32_t hfclkstat_after = NRF_CLOCK->HFCLKSTAT;
+    bool hfclk_running_after = (hfclkstat_after & CLOCK_HFCLKSTAT_STATE_Msk) == (CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos);
+    bool hfclk_xtal_after = (hfclkstat_after & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
+    
+    NRF_LOG_INFO("HFCLK status after SVC call: 0x%08X", hfclkstat_after);
+    NRF_LOG_INFO("HFCLK running: %s, Source: %s", 
+                 hfclk_running_after ? "Yes" : "No",
+                 hfclk_xtal_after ? "XTAL (32MHz)" : "RC (64MHz)");
     NRF_LOG_FLUSH();
     
     if (err_code != NRF_SUCCESS)
@@ -303,6 +402,9 @@ static bool ble_stack_init(void)
         NRF_LOG_ERROR("  0x00000004 = Not supported");
         NRF_LOG_ERROR("  0x00000005 = Internal error");
         NRF_LOG_ERROR("  0x00000006 = Invalid length");
+        NRF_LOG_ERROR("HFCLK was %s before, %s after", 
+                      hfclk_running_before ? "running" : "not running",
+                      hfclk_running_after ? "running" : "not running");
         NRF_LOG_FLUSH();
         return false;
     }
@@ -506,7 +608,9 @@ int main(void)
     #endif
 
     /* BLE initialization - Set to 0 to enable BLE, 1 to disable for testing */
-    #define TEST_WITHOUT_SOFTDEVICE 0  // Change to 1 to test without BLE
+    /* IMPORTANT: If SoftDevice initialization hangs at SVC_Handler, set this to 1 */
+    /* This allows LED matrix and other features to work without BLE */
+    #define TEST_WITHOUT_SOFTDEVICE 1  // Set to 0 to enable BLE, 1 to skip BLE (LED will work)
     
     #if TEST_WITHOUT_SOFTDEVICE
     NRF_LOG_INFO("=== TEST MODE: Running WITHOUT SoftDevice/BLE ===");

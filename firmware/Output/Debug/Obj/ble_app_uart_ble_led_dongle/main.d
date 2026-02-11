@@ -117,4 +117,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/pca10040.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.h
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_clock.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_clock.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_power_clock.h
