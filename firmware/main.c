@@ -1,500 +1,278 @@
 /**
- * State machine: 1ms SysTick → app_scheduler → LED rainbow every 1s + serial→RTT echo.
- * SysTick pushes sm_tick_handler to scheduler; main loop runs app_sched_execute().
- * BLE NUS integrated: BLE terminal data → serial_rx_inject → state machine.
+ * Copyright (c) 2014 - 2021, Nordic Semiconductor ASA
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form, except as embedded into a Nordic
+ *    Semiconductor ASA integrated circuit in a product or a software update for
+ *    such product, must reproduce the above copyright notice, this list of
+ *    conditions and the following disclaimer in the documentation and/or other
+ *    materials provided with the distribution.
+ *
+ * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * 4. This software, with or without modification, must only be used with a
+ *    Nordic Semiconductor ASA integrated circuit.
+ *
+ * 5. Any software provided in binary form under this license must not be reverse
+ *    engineered, decompiled, modified and/or disassembled.
+ *
+ * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+/** @file
+ *
+ * @defgroup ble_sdk_uart_over_ble_main main.c
+ * @{
+ * @ingroup  ble_sdk_app_nus_eval
+ * @brief    UART over BLE application main file.
+ *
+ * This file contains the source code for a sample application that uses the Nordic UART service.
+ * This application uses the @ref srvlib_conn_params module.
  */
 
-#include <math.h>
-#include <stdbool.h>
+
+#include <stdint.h>
 #include <string.h>
+#include "nordic_common.h"
 #include "nrf.h"
-#include "nrf_gpio.h"
-#include "app_error.h"
-#include "app_scheduler.h"
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-#include "led_matrix.h"
-#include "SEGGER_RTT.h"
-#include "core_cm4.h"
+#include "ble_hci.h"
+#include "ble_advdata.h"
+#include "ble_advertising.h"
+#include "ble_conn_params.h"
 #include "nrf_sdh.h"
+#include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
-#include "ble_advertising.h"
-#include "ble_conn_params.h"
-#include "ble_nus.h"
-#include "nrf_pwr_mgmt.h"
 #include "app_timer.h"
-#include "bsp.h"
-#include "nrfx_clock.h"
+#include "ble_nus.h"
+// UART disabled - using RTT only
+// #include "app_uart.h"
+#include "app_util_platform.h"
+#include "bsp_btn_ble.h"
+#include "nrf_pwr_mgmt.h"
 
-#define SERIAL_RX_BUF_SIZE   256
-#define TICKS_PER_LED_UPDATE 1000   /* 1s = 1000 × 1ms */
-
-#define SCHED_MAX_EVENT_SIZE 0
-#define SCHED_QUEUE_SIZE     16
-
-/* BLE configuration */
-#define DEVICE_NAME          "BLE_LED_Dongle"
-#define APP_BLE_CONN_CFG_TAG  1
-#define APP_BLE_OBSERVER_PRIO 3
-
-#define APP_ADV_INTERVAL     64      /* 40ms in units of 0.625ms */
-#define APP_ADV_DURATION     180     /* 180 seconds */
-#define APP_ADV_SLOW_INTERVAL 1600    /* 1s in units of 0.625ms */
-#define APP_ADV_SLOW_DURATION 0      /* 0 = infinite */
-
-/* Advertising UUIDs - NUS service UUID from ble_nus.h */
-#define APP_BLE_UUID_TYPE BLE_UUID_TYPE_VENDOR_BEGIN
-/* BLE_UUID_NUS_SERVICE is defined in ble_nus.h */
-static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_NUS_SERVICE, APP_BLE_UUID_TYPE}};
-
-/* BLE instances */
-static ble_nus_t                        m_nus;
-static nrf_ble_gatt_t                   m_gatt;
-static nrf_ble_qwr_t                    m_qwr;
-static ble_advertising_t                m_advertising;
-
-/* Serial RX ringbuffer (e.g. from BLE NUS later) */
-static uint8_t  serial_rx_buf[SERIAL_RX_BUF_SIZE];
-static volatile uint8_t serial_rx_head;
-static uint8_t  serial_rx_tail;
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
+#if defined (UART_PRESENT)
+#include "nrf_uart.h"
+#endif
+#if defined (UARTE_PRESENT)
+#include "nrf_uarte.h"
 #endif
 
-static uint32_t sm_tick_count;
-static const float phase = 2.f * (float)M_PI / 3.f;
-static const float max_val = 5.f;
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
+#include "nrf_gpio.h"
+#include "led_matrix.h"
+#include "app_timer.h"
 
-static void serial_rx_push(uint8_t byte)
+#define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
+
+#define DEVICE_NAME                     "Nordic_UART"                               /**< Name of device. Will be included in the advertising data. */
+#define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
+
+#define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
+
+#define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
+
+#define APP_ADV_DURATION                18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
+#define SLAVE_LATENCY                   0                                           /**< Slave latency. */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)             /**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                       /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
+#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                      /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
+#define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
+
+#define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
+
+#define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
+
+#define LED_UPDATE_INTERVAL_MS    500                                                /**< LED matrix update interval in milliseconds. Slower update to reduce BLE interference. */
+APP_TIMER_DEF(m_led_update_timer_id);                                               /**< Timer ID for LED matrix updates. */
+static volatile bool m_led_update_pending = false;                                  /**< Flag indicating LED matrix update is pending. */
+static volatile uint8_t m_led_pattern_counter = 0;                                  /**< Counter for LED pattern animation. */
+static volatile bool m_ble_event_processing = false;                                /**< Flag indicating BLE event is being processed. */
+
+BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
+NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
+NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
+BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
+static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
+static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
+static ble_uuid_t m_adv_uuids[]          =                                          /**< Universally unique service identifier. */
 {
-    uint8_t next = (uint8_t)(serial_rx_head + 1);
-    if (next != serial_rx_tail)
-    {
-        serial_rx_buf[serial_rx_head] = byte;
-        serial_rx_head = next;
-    }
+    {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
+};
+
+
+/**@brief Function for assert macro callback.
+ *
+ * @details This function will be called in case of an assert in the SoftDevice.
+ *
+ * @warning This handler is an example only and does not fit a final product. You need to analyse
+ *          how your product is supposed to react in case of Assert.
+ * @warning On assert from the SoftDevice, the system can only recover on reset.
+ *
+ * @param[in] line_num    Line number of the failing ASSERT call.
+ * @param[in] p_file_name File name of the failing ASSERT call.
+ */
+void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
+{
+    app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
-static bool serial_rx_available(void)
+/**@brief Timer handler for LED matrix updates.
+ *
+ * @details This function is called periodically to request LED matrix update.
+ *          It only sets a flag - actual LED update happens in main loop to avoid
+ *          interrupting SoftDevice during critical operations.
+ */
+static void led_update_timer_handler(void * p_context)
 {
-    return serial_rx_tail != serial_rx_head;
-}
-
-static bool serial_rx_get(uint8_t *out)
-{
-    if (!out || !serial_rx_available())
-        return false;
-    *out = serial_rx_buf[serial_rx_tail];
-    serial_rx_tail = (uint8_t)(serial_rx_tail + 1);
-    return true;
-}
-
-void serial_rx_inject(const uint8_t *data, uint16_t len)
-{
-    if (!data) return;
-    for (uint16_t i = 0; i < len; i++)
-        serial_rx_push(data[i]);
-}
-
-static void run_rainbow_frame(void)
-{
-    for (int i = 0; i < 144; i++)
-    {
-        float wave = ((i / 12) + (i % 12)) * 0.5f + (float)sm_tick_count / 100.f;
-        float r = max_val * (sinf(wave) + 1.f);
-        float g = max_val * (sinf(wave + phase) + 1.f);
-        float b = max_val * (sinf(wave + 2.f * phase) + 1.f);
-        matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W),
-                         (uint8_t)r, (uint8_t)g, (uint8_t)b);
-    }
-    matrix_show();
-}
-
-static void sm_tick_handler(void *p_event_data, uint16_t event_size)
-{
-    (void)p_event_data;
-    (void)event_size;
-
-    sm_tick_count++;
-
-    if ((sm_tick_count % 10) == 0)
-        run_rainbow_frame();
-
-    if (serial_rx_available())
-    {
-        uint8_t b;
-        while (serial_rx_get(&b))
-            SEGGER_RTT_Write(0, (const char *)&b, 1);
-        SEGGER_RTT_WriteString(0, "\r\n");
-    }
-}
-
-void SysTick_Handler(void)
-{
-    uint32_t err = app_sched_event_put(NULL, 0, sm_tick_handler);
-    (void)err;
-}
-
-/* Clock event handler (not used, but required by nrfx_clock_init) */
-static void clock_event_handler(nrfx_clock_evt_type_t event)
-{
-    // Not used in this simple case - we poll for status instead
-    (void)event;
-}
-
-/* Start 32MHz external crystal before SoftDevice initialization */
-static void start_32mhz_crystal_before_softdevice(void)
-{
-    NRF_LOG_INFO("Starting 32MHz external crystal (HFXO) before SoftDevice init...");
-    NRF_LOG_FLUSH();
+    (void)p_context;
     
-    // Initialize nrfx_clock driver
-    nrfx_err_t err = nrfx_clock_init(clock_event_handler);
-    if (err != NRFX_SUCCESS)
-    {
-        NRF_LOG_ERROR("nrfx_clock_init failed: 0x%08X", err);
-        NRF_LOG_FLUSH();
-        return;
-    }
-    
-    // Start HFXO (32MHz external crystal)
-    nrfx_clock_hfclk_start();
-    
-    // Wait for HFXO to be ready (SoftDevice needs this)
-    volatile uint32_t timeout = 1000000;  // 1 second timeout
-    while (!nrfx_clock_hfclk_is_running() && timeout-- > 0)
-    {
-        __NOP();
-    }
-    
-    if (nrfx_clock_hfclk_is_running())
-    {
-        // Verify it's using XTAL, not RC
-        uint32_t hfclkstat = NRF_CLOCK->HFCLKSTAT;
-        bool is_xtal = (hfclkstat & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
-        
-        if (is_xtal)
-        {
-            NRF_LOG_INFO("32MHz external crystal (HFXO) is now running - ready for SoftDevice");
-            NRF_LOG_FLUSH();
-        }
-        else
-        {
-            NRF_LOG_WARNING("HFCLK is running but source is RC, not XTAL!");
-            NRF_LOG_FLUSH();
-        }
-    }
-    else
-    {
-        NRF_LOG_ERROR("32MHz crystal failed to start! SoftDevice may fail to initialize");
-        NRF_LOG_ERROR("Check: 1) Crystal connected? 2) Load capacitors? 3) Power supply?");
-        NRF_LOG_FLUSH();
-    }
+    // Only set flag - actual update happens in main loop
+    // This prevents interrupting SoftDevice during critical BLE operations
+    m_led_update_pending = true;
+    m_led_pattern_counter++;
 }
 
+/**@brief Function for initializing the timer module.
+ */
 static void timers_init(void)
 {
-    if (SysTick_Config(SystemCoreClock / 1000u) != 0u)
-        SysTick_Config(32000u);
+    ret_code_t err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+    
+    // Create timer for LED matrix updates
+    err_code = app_timer_create(&m_led_update_timer_id,
+                                 APP_TIMER_MODE_REPEATED,
+                                 led_update_timer_handler);
+    APP_ERROR_CHECK(err_code);
 }
 
-/* BLE NUS event handler: called when data is received via BLE */
-static void nus_data_handler(ble_nus_evt_t *p_evt)
+/**@brief Function for the GAP initialization.
+ *
+ * @details This function will set up all the necessary GAP (Generic Access Profile) parameters of
+ *          the device. It also sets the permissions and appearance.
+ */
+static void gap_params_init(void)
 {
+    uint32_t                err_code;
+    ble_gap_conn_params_t   gap_conn_params;
+    ble_gap_conn_sec_mode_t sec_mode;
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
+
+    err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                          (const uint8_t *) DEVICE_NAME,
+                                          strlen(DEVICE_NAME));
+    APP_ERROR_CHECK(err_code);
+
+    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
+
+    gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
+    gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
+
+    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling Queued Write Module errors.
+ *
+ * @details A pointer to this function will be passed to each service which may need to inform the
+ *          application about an error.
+ *
+ * @param[in]   nrf_error   Error code containing information about what went wrong.
+ */
+static void nrf_qwr_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+
+/**@brief Function for handling the data from the Nordic UART Service.
+ *
+ * @details This function will process the data received from the Nordic UART BLE Service and send
+ *          it to the UART module.
+ *
+ * @param[in] p_evt       Nordic UART Service event.
+ */
+/**@snippet [Handling the data received over BLE] */
+static void nus_data_handler(ble_nus_evt_t * p_evt)
+{
+
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
-        serial_rx_inject(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
+        uint32_t err_code;
+
+        NRF_LOG_INFO("Received data from BLE NUS. Writing data via RTT.");
+        NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
+
+        // UART disabled - using RTT only
+        // Print received data via RTT (already logged above)
+        // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
+        // {
+        //     do
+        //     {
+        //         err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
+        //         if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
+        //         {
+        //             NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
+        //             APP_ERROR_CHECK(err_code);
+        //         }
+        //     } while (err_code == NRF_ERROR_BUSY);
+        // }
+        // if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
+        // {
+        //     while (app_uart_put('\n') == NRF_ERROR_BUSY);
+        // }
     }
+
 }
+/**@snippet [Handling the data received over BLE] */
 
-/* Advertising event handler (forward declaration) */
-static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
 
-/* BLE event handler */
-static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
-{
-    uint32_t err_code;
-
-    switch (p_ble_evt->header.evt_id)
-    {
-        case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("Connected");
-            #ifdef BSP_INDICATE_CONNECTED
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
-            #endif
-            break;
-
-        case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("Disconnected");
-            #ifdef BSP_INDICATE_DISCONNECTED
-            err_code = bsp_indication_set(BSP_INDICATE_DISCONNECTED);
-            APP_ERROR_CHECK(err_code);
-            #endif
-            err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-            APP_ERROR_CHECK(err_code);
-            break;
-
-        case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-            err_code = sd_ble_gap_sec_params_reply(p_ble_evt->evt.gap_evt.conn_handle,
-                                                    BLE_GAP_SEC_STATUS_SUCCESS,
-                                                    NULL, NULL);
-            APP_ERROR_CHECK(err_code);
-            break;
-
-        case BLE_GATTS_EVT_SYS_ATTR_MISSING:
-            err_code = sd_ble_gatts_sys_attr_set(p_ble_evt->evt.gatts_evt.conn_handle,
-                                                  NULL, 0, 0);
-            APP_ERROR_CHECK(err_code);
-            break;
-
-        default:
-            break;
-    }
-}
-
-/* Check if SoftDevice is present in flash */
-static bool check_softdevice_present(void)
-{
-    // SoftDevice typically starts at 0x0 with a specific header
-    // Check for SoftDevice signature at address 0x0
-    volatile uint32_t *flash_start = (volatile uint32_t *)0x0;
-    uint32_t first_word = flash_start[0];
-    uint32_t second_word = flash_start[1];
-    
-    // SoftDevice usually has non-zero, non-0xFFFFFFFF values at start
-    // If flash is erased (0xFFFFFFFF) or all zeros, SoftDevice is likely missing
-    if (first_word == 0xFFFFFFFF || first_word == 0x00000000)
-    {
-        NRF_LOG_ERROR("SoftDevice not detected at 0x0 (flash appears erased)");
-        NRF_LOG_ERROR("First word: 0x%08X, Second word: 0x%08X", first_word, second_word);
-        return false;
-    }
-    
-    NRF_LOG_INFO("SoftDevice signature found at 0x0: 0x%08X 0x%08X", first_word, second_word);
-    
-    // Additional check: verify SoftDevice vector table
-    // SoftDevice should have a valid vector table at 0x0
-    volatile uint32_t *vectors = (volatile uint32_t *)0x0;
-    uint32_t stack_ptr = vectors[0];      // Initial stack pointer
-    uint32_t reset_handler = vectors[1];  // Reset handler is at offset 4 (index 1)
-    
-    NRF_LOG_INFO("Vector table: SP=0x%08X, Reset=0x%08X", stack_ptr, reset_handler);
-    
-    // Check if reset handler points to a reasonable address
-    // SoftDevice reset handler should be in the range 0x100-0x19000 (SoftDevice flash area)
-    // Note: 0x00000A81 (2689) is actually valid - it's in the SoftDevice range
-    if (reset_handler == 0x00000000 || reset_handler == 0xFFFFFFFF)
-    {
-        NRF_LOG_ERROR("SoftDevice vector table is INVALID: Reset handler = 0x%08X", reset_handler);
-        NRF_LOG_ERROR("This indicates SoftDevice is corrupted or not properly flashed!");
-        NRF_LOG_ERROR("Please re-flash SoftDevice S112 to address 0x0");
-        NRF_LOG_FLUSH();
-        return false;
-    }
-    else if (reset_handler < 0x100 || reset_handler > 0x19000)
-    {
-        NRF_LOG_WARNING("SoftDevice vector table may be invalid: Reset handler = 0x%08X", reset_handler);
-        NRF_LOG_WARNING("Expected range: 0x100-0x19000 (SoftDevice flash area)");
-        NRF_LOG_FLUSH();
-        // Don't return false here, but log warning
-    }
-    else
-    {
-        NRF_LOG_INFO("SoftDevice vector table looks valid: Reset handler = 0x%08X", reset_handler);
-    }
-    
-    return true;
-}
-
-/* BLE stack initialization */
-static bool ble_stack_init(void)
-{
-    uint32_t err_code;
-
-    // First check if SoftDevice is present before attempting to enable
-    if (!check_softdevice_present())
-    {
-        NRF_LOG_ERROR("SoftDevice not found in flash!");
-        NRF_LOG_ERROR("Please flash SoftDevice S112 to address 0x0");
-        NRF_LOG_ERROR("File: s112_nrf52_7.2.0_softdevice.hex");
-        NRF_LOG_FLUSH();
-        return false;
-    }
-
-    // CRITICAL: Start 32MHz crystal BEFORE SoftDevice initialization
-    // SoftDevice requires 32MHz external crystal (HFXO) for BLE operation
-    // If HFCLK is using RC (64MHz), SoftDevice initialization will fail
-    start_32mhz_crystal_before_softdevice();
-    
-    NRF_LOG_INFO("Requesting SoftDevice enable...");
-    NRF_LOG_FLUSH();
-    
-    // Log clock configuration before enabling
-    NRF_LOG_INFO("Clock config: LF_SRC=%d, LF_ACCURACY=%d", 
-                 NRF_SDH_CLOCK_LF_SRC, NRF_SDH_CLOCK_LF_ACCURACY);
-    NRF_LOG_FLUSH();
-    
-    // Check HFCLK status before SoftDevice initialization
-    // This helps diagnose if 32MHz crystal is ready
-    uint32_t hfclkstat_before = NRF_CLOCK->HFCLKSTAT;
-    bool hfclk_running_before = (hfclkstat_before & CLOCK_HFCLKSTAT_STATE_Msk) == (CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos);
-    bool hfclk_xtal_before = (hfclkstat_before & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
-    
-    NRF_LOG_INFO("HFCLK status before SoftDevice init: 0x%08X", hfclkstat_before);
-    NRF_LOG_INFO("HFCLK running: %s, Source: %s", 
-                 hfclk_running_before ? "Yes" : "No",
-                 hfclk_xtal_before ? "XTAL (32MHz)" : "RC (64MHz)");
-    
-    if (!hfclk_xtal_before)
-    {
-        NRF_LOG_ERROR("WARNING: HFCLK is not using 32MHz XTAL! SoftDevice may fail!");
-        NRF_LOG_ERROR("Expected: XTAL (32MHz), Actual: RC (64MHz)");
-        NRF_LOG_FLUSH();
-    }
-    NRF_LOG_FLUSH();
-    
-    // This will trigger SVC call - if SoftDevice is missing, we'll get stuck here
-    // The SVC call itself may hang if SoftDevice can't initialize
-    // NOTE: 32MHz crystal is now confirmed running, so if we hang here, it's a SoftDevice issue
-    NRF_LOG_INFO("Calling nrf_sdh_enable_request() - this may hang if SoftDevice has issues");
-    NRF_LOG_INFO("32MHz crystal is confirmed running, so hang indicates SoftDevice problem");
-    NRF_LOG_FLUSH();
-    
-    // Flush all logs before SVC call (may not return)
-    NRF_LOG_FLUSH();
-    SEGGER_RTT_WriteString(0, "\r\n[Before SVC] About to call nrf_sdh_enable_request()\r\n");
-    SEGGER_RTT_WriteString(0, "[WARNING] If stuck here, SoftDevice initialization is failing\r\n");
-    SEGGER_RTT_WriteString(0, "[WARNING] This will block forever - consider using TEST_WITHOUT_SOFTDEVICE=1\r\n");
-    
-    // CRITICAL: This SVC call may block forever if SoftDevice has issues
-    // There's no way to timeout or cancel this call once it starts
-    // If it hangs, the only solution is to skip SoftDevice initialization
-    err_code = nrf_sdh_enable_request();
-    
-    // If we get here, SVC call completed (good sign!)
-    SEGGER_RTT_WriteString(0, "\r\n[After SVC] nrf_sdh_enable_request() returned\r\n");
-    NRF_LOG_INFO("nrf_sdh_enable_request() returned: 0x%08X", err_code);
-    NRF_LOG_FLUSH();
-    
-    // Check HFCLK status after SVC call
-    uint32_t hfclkstat_after = NRF_CLOCK->HFCLKSTAT;
-    bool hfclk_running_after = (hfclkstat_after & CLOCK_HFCLKSTAT_STATE_Msk) == (CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos);
-    bool hfclk_xtal_after = (hfclkstat_after & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
-    
-    NRF_LOG_INFO("HFCLK status after SVC call: 0x%08X", hfclkstat_after);
-    NRF_LOG_INFO("HFCLK running: %s, Source: %s", 
-                 hfclk_running_after ? "Yes" : "No",
-                 hfclk_xtal_after ? "XTAL (32MHz)" : "RC (64MHz)");
-    NRF_LOG_FLUSH();
-    
-    if (err_code != NRF_SUCCESS)
-    {
-        NRF_LOG_ERROR("SoftDevice enable request failed: 0x%08X", err_code);
-        NRF_LOG_ERROR("Error meanings:");
-        NRF_LOG_ERROR("  0x00000001 = Invalid parameter");
-        NRF_LOG_ERROR("  0x00000002 = Invalid state");
-        NRF_LOG_ERROR("  0x00000003 = Out of memory");
-        NRF_LOG_ERROR("  0x00000004 = Not supported");
-        NRF_LOG_ERROR("  0x00000005 = Internal error");
-        NRF_LOG_ERROR("  0x00000006 = Invalid length");
-        NRF_LOG_ERROR("HFCLK was %s before, %s after", 
-                      hfclk_running_before ? "running" : "not running",
-                      hfclk_running_after ? "running" : "not running");
-        NRF_LOG_FLUSH();
-        return false;
-    }
-    NRF_LOG_INFO("SoftDevice enable requested successfully");
-    NRF_LOG_FLUSH();
-
-    // Wait for SoftDevice to initialize
-    // With APPSH dispatch model, we need to process scheduler events
-    NRF_LOG_INFO("Waiting for SoftDevice to initialize...");
-    NRF_LOG_FLUSH();
-    
-    // Process scheduler events while waiting for SoftDevice
-    volatile int timeout = 1000000;
-    while (timeout-- > 0)
-    {
-        app_sched_execute();
-        if (nrf_sdh_is_enabled())
-        {
-            NRF_LOG_INFO("SoftDevice is now enabled");
-            NRF_LOG_FLUSH();
-            break;
-        }
-        __NOP();
-    }
-    
-    if (!nrf_sdh_is_enabled())
-    {
-        NRF_LOG_ERROR("SoftDevice enable timeout - may be stuck");
-        NRF_LOG_FLUSH();
-        return false;
-    }
-    
-    NRF_LOG_INFO("SoftDevice initialization completed");
-    NRF_LOG_FLUSH();
-
-    uint32_t ram_start = 0;
-    NRF_LOG_INFO("Setting BLE default config...");
-    NRF_LOG_FLUSH();
-    err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
-    if (err_code != NRF_SUCCESS)
-    {
-        NRF_LOG_ERROR("BLE config set failed: 0x%08X", err_code);
-        NRF_LOG_FLUSH();
-        return false;
-    }
-    NRF_LOG_INFO("BLE config set, RAM start: 0x%08X", ram_start);
-    NRF_LOG_FLUSH();
-
-    NRF_LOG_INFO("Enabling BLE stack...");
-    NRF_LOG_FLUSH();
-    err_code = nrf_sdh_ble_enable(&ram_start);
-    if (err_code != NRF_SUCCESS)
-    {
-        NRF_LOG_ERROR("BLE stack enable failed: 0x%08X", err_code);
-        NRF_LOG_ERROR("Check: 1) 32MHz crystal connected? 2) SoftDevice flashed?");
-        NRF_LOG_FLUSH();
-        return false;
-    }
-    NRF_LOG_INFO("BLE stack enabled");
-    NRF_LOG_FLUSH();
-
-    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
-    return true;
-}
-
-/* GATT module initialization */
-static void gatt_init(void)
-{
-    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
-    APP_ERROR_CHECK(err_code);
-}
-
-/* Queued writes module initialization */
-static void qwr_init(void)
-{
-    ret_code_t err_code;
-    nrf_ble_qwr_init_t qwr_init = {0};
-
-    qwr_init.error_handler = NULL;
-
-    err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
-    APP_ERROR_CHECK(err_code);
-}
-
-/* NUS service initialization */
+/**@brief Function for initializing services that will be used by the application.
+ */
 static void services_init(void)
 {
     uint32_t           err_code;
     ble_nus_init_t     nus_init;
+    nrf_ble_qwr_init_t qwr_init = {0};
 
+    // Initialize Queued Write Module.
+    qwr_init.error_handler = nrf_qwr_error_handler;
+
+    err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
+    APP_ERROR_CHECK(err_code);
+
+    // Initialize NUS.
     memset(&nus_init, 0, sizeof(nus_init));
 
     nus_init.data_handler = nus_data_handler;
@@ -503,7 +281,42 @@ static void services_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/* Connection parameters module initialization */
+
+/**@brief Function for handling an event from the Connection Parameters Module.
+ *
+ * @details This function will be called for all events in the Connection Parameters Module
+ *          which are passed to the application.
+ *
+ * @note All this function does is to disconnect. This could have been done by simply setting
+ *       the disconnect_on_fail config parameter, but instead we use the event handler
+ *       mechanism to demonstrate its use.
+ *
+ * @param[in] p_evt  Event received from the Connection Parameters Module.
+ */
+static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
+{
+    uint32_t err_code;
+
+    if (p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
+    {
+        err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
+        APP_ERROR_CHECK(err_code);
+    }
+}
+
+
+/**@brief Function for handling errors from the Connection Parameters module.
+ *
+ * @param[in] nrf_error  Error code containing information about what went wrong.
+ */
+static void conn_params_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+
+/**@brief Function for initializing the Connection Parameters module.
+ */
 static void conn_params_init(void)
 {
     uint32_t               err_code;
@@ -512,48 +325,44 @@ static void conn_params_init(void)
     memset(&cp_init, 0, sizeof(cp_init));
 
     cp_init.p_conn_params                  = NULL;
-    cp_init.first_conn_params_update_delay = APP_TIMER_TICKS(5000);
-    cp_init.next_conn_params_update_delay  = APP_TIMER_TICKS(30000);
-    cp_init.max_conn_params_update_count    = 3;
+    cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
     cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
-    cp_init.disconnect_on_fail              = false;
-    cp_init.evt_handler                     = NULL;
-    cp_init.error_handler                    = NULL;
+    cp_init.disconnect_on_fail             = false;
+    cp_init.evt_handler                    = on_conn_params_evt;
+    cp_init.error_handler                  = conn_params_error_handler;
 
     err_code = ble_conn_params_init(&cp_init);
     APP_ERROR_CHECK(err_code);
 }
 
-/* Advertising initialization */
-static void advertising_init(void)
+
+/**@brief Function for putting the chip into sleep mode.
+ *
+ * @note This function will not return.
+ */
+static void sleep_mode_enter(void)
 {
-    uint32_t               err_code;
-    ble_advertising_init_t init;
-
-    memset(&init, 0, sizeof(init));
-
-    init.advdata.name_type               = BLE_ADVDATA_FULL_NAME;
-    init.advdata.include_appearance      = true;
-    init.advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-    init.advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    init.advdata.uuids_complete.p_uuids  = m_adv_uuids;
-
-    init.config.ble_adv_fast_enabled  = true;
-    init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
-    init.config.ble_adv_slow_enabled  = true;
-    init.config.ble_adv_slow_interval = APP_ADV_SLOW_INTERVAL;
-    init.config.ble_adv_slow_timeout  = APP_ADV_SLOW_DURATION;
-
-    init.evt_handler = on_adv_evt;
-
-    err_code = ble_advertising_init(&m_advertising, &init);
+    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
     APP_ERROR_CHECK(err_code);
 
-    ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
+    // Prepare wakeup buttons.
+    err_code = bsp_btn_ble_sleep_mode_prepare();
+    APP_ERROR_CHECK(err_code);
+
+    // Go to system-off mode (this function will not return; wakeup will cause a reset).
+    err_code = sd_power_system_off();
+    APP_ERROR_CHECK(err_code);
 }
 
-/* Advertising event handler */
+
+/**@brief Function for handling advertising events.
+ *
+ * @details This function will be called for advertising events which are passed to the application.
+ *
+ * @param[in] ble_adv_evt  Advertising event.
+ */
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
     uint32_t err_code;
@@ -561,111 +370,567 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            #ifdef BSP_INDICATE_ADVERTISING
+            NRF_LOG_INFO("BLE_ADV_EVT_FAST: Fast advertising started");
+            NRF_LOG_FLUSH();
+            
+            // Set TX power to maximum for better range and discoverability
+            // This must be done after advertising starts, when handle is available
+            err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_advertising.adv_handle, 4);
+            if (err_code != NRF_SUCCESS)
+            {
+                NRF_LOG_ERROR("sd_ble_gap_tx_power_set failed: 0x%08X", err_code);
+                NRF_LOG_FLUSH();
+            }
+            else
+            {
+                NRF_LOG_INFO("TX power set to +4dBm (handle: %d)", m_advertising.adv_handle);
+                NRF_LOG_FLUSH();
+            }
+            
             err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
             APP_ERROR_CHECK(err_code);
-            #endif
+            break;
+        case BLE_ADV_EVT_SLOW:
+            NRF_LOG_INFO("BLE_ADV_EVT_SLOW: Slow advertising started");
+            NRF_LOG_FLUSH();
+            
+            // Set TX power to maximum for better range and discoverability
+            // This must be done after advertising starts, when handle is available
+            err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_advertising.adv_handle, 4);
+            if (err_code != NRF_SUCCESS)
+            {
+                NRF_LOG_ERROR("sd_ble_gap_tx_power_set failed: 0x%08X", err_code);
+                NRF_LOG_FLUSH();
+            }
+            else
+            {
+                NRF_LOG_INFO("TX power set to +4dBm (handle: %d)", m_advertising.adv_handle);
+                NRF_LOG_FLUSH();
+            }
+            
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            APP_ERROR_CHECK(err_code);
             break;
         case BLE_ADV_EVT_IDLE:
-            #ifdef BSP_INDICATE_IDLE
-            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-            APP_ERROR_CHECK(err_code);
-            #endif
+            NRF_LOG_INFO("BLE_ADV_EVT_IDLE: Advertising stopped");
+            NRF_LOG_FLUSH();
+            // Don't enter sleep mode here - ble_advertising module will automatically
+            // restart advertising in the next mode (slow advertising)
+            // sleep_mode_enter() should only be called when user explicitly requests it
             break;
+        default:
+            NRF_LOG_INFO("BLE advertising event: %d", ble_adv_evt);
+            NRF_LOG_FLUSH();
+            break;
+    }
+}
+
+
+/**@brief Function for handling BLE events.
+ *
+ * @param[in]   p_ble_evt   Bluetooth stack event.
+ * @param[in]   p_context   Unused.
+ */
+static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
+{
+    uint32_t err_code;
+    
+    // Set flag to indicate BLE event is being processed
+    // LED updates will be deferred during BLE event processing
+    m_ble_event_processing = true;
+
+    switch (p_ble_evt->header.evt_id)
+    {
+        case BLE_GAP_EVT_CONNECTED:
+            NRF_LOG_INFO("Connected");
+            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+            APP_ERROR_CHECK(err_code);
+            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GAP_EVT_DISCONNECTED:
+            NRF_LOG_INFO("Disconnected");
+            // LED indication will be changed when advertising starts.
+            m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            break;
+
+        case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
+        {
+            NRF_LOG_DEBUG("PHY update request.");
+            ble_gap_phys_t const phys =
+            {
+                .rx_phys = BLE_GAP_PHY_AUTO,
+                .tx_phys = BLE_GAP_PHY_AUTO,
+            };
+            err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+            APP_ERROR_CHECK(err_code);
+        } break;
+
+        case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+            // Pairing not supported
+            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GATTS_EVT_SYS_ATTR_MISSING:
+            // No system attributes have been stored.
+            err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GATTC_EVT_TIMEOUT:
+            // Disconnect on GATT Client timeout event.
+            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
+                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GATTS_EVT_TIMEOUT:
+            // Disconnect on GATT Server timeout event.
+            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
+                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        default:
+            // No implementation needed.
+            break;
+    }
+    
+    // Clear flag after BLE event processing is complete
+    m_ble_event_processing = false;
+}
+
+
+/**@brief Function for the SoftDevice initialization.
+ *
+ * @details This function initializes the SoftDevice and the BLE event interrupt.
+ */
+static void ble_stack_init(void)
+{
+    ret_code_t err_code;
+
+    NRF_LOG_INFO("Initializing SoftDevice...");
+    NRF_LOG_FLUSH();
+    err_code = nrf_sdh_enable_request();
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_enable_request failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
+    APP_ERROR_CHECK(err_code);
+
+    // Configure the BLE stack using the default settings.
+    // Fetch the start address of the application RAM.
+    uint32_t ram_start = 0;
+    NRF_LOG_INFO("Configuring BLE stack...");
+    NRF_LOG_FLUSH();
+    err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_ble_default_cfg_set failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
+    APP_ERROR_CHECK(err_code);
+
+    // Enable BLE stack.
+    NRF_LOG_INFO("Enabling BLE stack...");
+    NRF_LOG_FLUSH();
+    err_code = nrf_sdh_ble_enable(&ram_start);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_ble_enable failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
+    APP_ERROR_CHECK(err_code);
+
+    // Register a handler for BLE events.
+    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+    
+    NRF_LOG_INFO("BLE stack initialized successfully");
+    NRF_LOG_FLUSH();
+}
+
+
+/**@brief Function for handling events from the GATT library. */
+void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt)
+{
+    if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED))
+    {
+        m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
+        NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
+    }
+    NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
+                  p_gatt->att_mtu_desired_central,
+                  p_gatt->att_mtu_desired_periph);
+}
+
+
+/**@brief Function for initializing the GATT library. */
+void gatt_init(void)
+{
+    ret_code_t err_code;
+
+    err_code = nrf_ble_gatt_init(&m_gatt, gatt_evt_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, NRF_SDH_BLE_GATT_MAX_MTU_SIZE);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling events from the BSP module.
+ *
+ * @param[in]   event   Event generated by button press.
+ */
+void bsp_event_handler(bsp_event_t event)
+{
+    uint32_t err_code;
+    switch (event)
+    {
+        case BSP_EVENT_SLEEP:
+            sleep_mode_enter();
+            break;
+
+        case BSP_EVENT_DISCONNECT:
+            err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            if (err_code != NRF_ERROR_INVALID_STATE)
+            {
+                APP_ERROR_CHECK(err_code);
+            }
+            break;
+
+        case BSP_EVENT_WHITELIST_OFF:
+            if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
+            {
+                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
+                if (err_code != NRF_ERROR_INVALID_STATE)
+                {
+                    APP_ERROR_CHECK(err_code);
+                }
+            }
+            break;
+
         default:
             break;
     }
 }
 
-int main(void)
+
+/**@brief   Function for handling app_uart events.
+ *
+ * @details This function will receive a single character from the app_uart module and append it to
+ *          a string. The string will be be sent over BLE when the last character received was a
+ *          'new line' '\n' (hex 0x0A) or if the string has reached the maximum data length.
+ */
+/**@snippet [Handling the data received over UART] */
+// UART disabled - using RTT only
+#if 0
+void uart_event_handle(app_uart_evt_t * p_event)
 {
-    uint32_t err_code;
+    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+    static uint8_t index = 0;
+    uint32_t       err_code;
 
-    SEGGER_RTT_WriteString(0, "\r\n>>> State machine: 1ms SysTick, rainbow 1s, BLE NUS terminal\r\n");
-
-    (void)NRF_LOG_INIT(NULL);
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
-
-    APP_SCHED_INIT(SCHED_MAX_EVENT_SIZE, SCHED_QUEUE_SIZE);
-
-    nrf_gpio_cfg_output(MATRIX_DATA_PIN);
-    ws2812_send_reset();
-
-    serial_rx_head = 0;
-    serial_rx_tail = 0;
-    sm_tick_count  = 0;
-
-    /* Initialize BLE */
-    err_code = nrf_pwr_mgmt_init();
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_init();
-    APP_ERROR_CHECK(err_code);
-
-    #ifdef BSP_INIT_LEDS
-    err_code = bsp_init(BSP_INIT_LEDS, NULL);
-    APP_ERROR_CHECK(err_code);
-    #endif
-
-    /* BLE initialization - Set to 0 to enable BLE, 1 to disable for testing */
-    /* IMPORTANT: If SoftDevice initialization hangs at SVC_Handler, set this to 1 */
-    /* This allows LED matrix and other features to work without BLE */
-    #define TEST_WITHOUT_SOFTDEVICE 1  // Set to 0 to enable BLE, 1 to skip BLE (LED will work)
-    
-    #if TEST_WITHOUT_SOFTDEVICE
-    NRF_LOG_INFO("=== TEST MODE: Running WITHOUT SoftDevice/BLE ===");
-    NRF_LOG_INFO("LED matrix and timer should work normally");
-    NRF_LOG_INFO("32MHz crystal test: Check if LED updates smoothly");
-    NRF_LOG_FLUSH();
-    #else
-    /* Try to initialize BLE - if 32MHz crystal is missing, this will fail */
-    NRF_LOG_INFO("Attempting BLE initialization...");
-    NRF_LOG_FLUSH();
-    
-    bool ble_ok = ble_stack_init();
-    if (ble_ok)
+    switch (p_event->evt_type)
     {
-        gatt_init();
-        qwr_init();
-        services_init();
-        conn_params_init();
-        advertising_init();
+        case APP_UART_DATA_READY:
+            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
+            index++;
 
-        err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-        if (err_code != NRF_SUCCESS)
-        {
-            NRF_LOG_ERROR("BLE advertising start failed: 0x%08X", err_code);
-            NRF_LOG_FLUSH();
-            ble_ok = false;
-        }
-        else
-        {
-            NRF_LOG_INFO("BLE initialized and advertising");
-            NRF_LOG_FLUSH();
-        }
-    }
-    else
-    {
-        NRF_LOG_ERROR("BLE initialization failed - continuing without BLE");
-        NRF_LOG_ERROR("Possible causes:");
-        NRF_LOG_ERROR("  1) 32MHz crystal not connected or faulty");
-        NRF_LOG_ERROR("  2) SoftDevice not flashed to 0x0");
-        NRF_LOG_ERROR("  3) Power supply issues");
-        NRF_LOG_FLUSH();
-    }
-    #endif
+            if ((data_array[index - 1] == '\n') ||
+                (data_array[index - 1] == '\r') ||
+                (index >= m_ble_nus_max_data_len))
+            {
+                if (index > 1)
+                {
+                    NRF_LOG_DEBUG("Ready to send data over BLE NUS");
+                    NRF_LOG_HEXDUMP_DEBUG(data_array, index);
 
-    timers_init();
+                    do
+                    {
+                        uint16_t length = (uint16_t)index;
+                        err_code = ble_nus_data_send(&m_nus, data_array, &length, m_conn_handle);
+                        if ((err_code != NRF_ERROR_INVALID_STATE) &&
+                            (err_code != NRF_ERROR_RESOURCES) &&
+                            (err_code != NRF_ERROR_NOT_FOUND))
+                        {
+                            APP_ERROR_CHECK(err_code);
+                        }
+                    } while (err_code == NRF_ERROR_RESOURCES);
+                }
 
-    run_rainbow_frame();
+                index = 0;
+            }
+            break;
 
-    NRF_LOG_INFO("BLE LED Dongle started");
+        case APP_UART_COMMUNICATION_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_communication);
+            break;
 
-    while (1)
-    {
-        app_sched_execute();
-        #if !TEST_WITHOUT_SOFTDEVICE
-        nrf_pwr_mgmt_run();
-        #endif
+        case APP_UART_FIFO_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_code);
+            break;
+
+        default:
+            break;
     }
 }
+#endif
+/**@snippet [Handling the data received over UART] */
+
+
+/**@brief  Function for initializing the UART module.
+ */
+/**@snippet [UART Initialization] */
+// UART disabled - using RTT only
+#if 0
+static void uart_init(void)
+{
+    uint32_t                     err_code;
+    app_uart_comm_params_t const comm_params =
+    {
+        .rx_pin_no    = RX_PIN_NUMBER,
+        .tx_pin_no    = TX_PIN_NUMBER,
+        .rts_pin_no   = RTS_PIN_NUMBER,
+        .cts_pin_no   = CTS_PIN_NUMBER,
+        .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
+        .use_parity   = false,
+#if defined (UART_PRESENT)
+        .baud_rate    = NRF_UART_BAUDRATE_115200
+#else
+        .baud_rate    = NRF_UARTE_BAUDRATE_115200
+#endif
+    };
+
+    APP_UART_FIFO_INIT(&comm_params,
+                       UART_RX_BUF_SIZE,
+                       UART_TX_BUF_SIZE,
+                       uart_event_handle,
+                       APP_IRQ_PRIORITY_LOWEST,
+                       err_code);
+    APP_ERROR_CHECK(err_code);
+}
+#endif
+/**@snippet [UART Initialization] */
+
+
+/**@brief Function for initializing the Advertising functionality.
+ */
+static void advertising_init(void)
+{
+    uint32_t               err_code;
+    ble_advertising_init_t init;
+
+    memset(&init, 0, sizeof(init));
+
+    init.advdata.name_type          = BLE_ADVDATA_FULL_NAME;
+    init.advdata.include_appearance = false;
+    init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+
+    init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+    init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
+
+    init.config.ble_adv_fast_enabled  = true;
+    init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
+    init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
+    init.config.ble_adv_slow_enabled  = true;
+    init.config.ble_adv_slow_interval = APP_ADV_INTERVAL;  // Same interval as fast for better discoverability
+    init.config.ble_adv_slow_timeout  = 0;  // 0 = no timeout, advertise indefinitely
+    init.evt_handler = on_adv_evt;
+
+    NRF_LOG_INFO("Initializing BLE advertising...");
+    NRF_LOG_FLUSH();
+    err_code = ble_advertising_init(&m_advertising, &init);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("ble_advertising_init failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
+    APP_ERROR_CHECK(err_code);
+
+    ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
+    NRF_LOG_INFO("BLE advertising initialized successfully");
+    NRF_LOG_FLUSH();
+}
+
+
+/**@brief Function for initializing buttons and leds.
+ *
+ * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
+ */
+static void buttons_leds_init(bool * p_erase_bonds)
+{
+    bsp_event_t startup_event;
+
+    uint32_t err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, bsp_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = bsp_btn_ble_init(NULL, &startup_event);
+    APP_ERROR_CHECK(err_code);
+
+    *p_erase_bonds = (startup_event == BSP_EVENT_CLEAR_BONDING_DATA);
+}
+
+
+/**@brief Function for initializing the nrf log module.
+ */
+static void log_init(void)
+{
+    ret_code_t err_code = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+}
+
+
+/**@brief Function for initializing power management.
+ */
+static void power_management_init(void)
+{
+    ret_code_t err_code;
+    err_code = nrf_pwr_mgmt_init();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for handling the idle state (main loop).
+ *
+ * @details If there is no pending log operation, then sleep until next the next event occurs.
+ *          Also handles LED matrix updates when requested by timer, but only when it's safe
+ *          (BLE is not processing events and SoftDevice is not suspended).
+ */
+static void idle_state_handle(void)
+{
+    // Handle LED matrix update if pending, but only when safe:
+    // 1. BLE event is not being processed
+    // 2. SoftDevice is enabled and not suspended
+    // 3. No active BLE connection (optional - can be removed if LED updates during connection are needed)
+    if (m_led_update_pending && !m_ble_event_processing)
+    {
+        // Check if SoftDevice is enabled and not suspended before updating LED
+        // This ensures we don't interrupt SoftDevice during critical operations
+        if (nrf_sdh_is_enabled() && !nrf_sdh_is_suspended())
+        {
+            m_led_update_pending = false;
+            
+            // Update LED matrix pattern
+            if (m_led_pattern_counter % 4 == 0)
+            {
+                // All LEDs green
+                matrix_fill(0, 30, 0);
+            }
+            else if (m_led_pattern_counter % 4 == 1)
+            {
+                // All LEDs red
+                matrix_fill(30, 0, 0);
+            }
+            else if (m_led_pattern_counter % 4 == 2)
+            {
+                // All LEDs blue
+                matrix_fill(0, 0, 30);
+            }
+            else
+            {
+                // Clear
+                matrix_clear();
+            }
+            
+            // Update LED matrix
+            // matrix_show() will check SoftDevice state again and skip if busy
+            // This gives SoftDevice priority - if it becomes busy, LED update is skipped
+            matrix_show();
+        }
+        // If SoftDevice is busy, keep the flag set and try again in next iteration
+    }
+    
+    if (NRF_LOG_PROCESS() == false)
+    {
+        nrf_pwr_mgmt_run();
+    }
+}
+
+
+/**@brief Function for starting advertising.
+ */
+static void advertising_start(void)
+{
+    NRF_LOG_INFO("Starting BLE advertising...");
+    NRF_LOG_FLUSH();
+    uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("ble_advertising_start failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("BLE advertising started");
+    NRF_LOG_FLUSH();
+}
+
+
+/**@brief Application main function.
+ */
+int main(void)
+{
+    bool erase_bonds;
+
+    // Initialize.
+    // uart_init();  // UART disabled - using RTT only
+    log_init();
+    timers_init();
+    buttons_leds_init(&erase_bonds);
+    power_management_init();
+    ble_stack_init();
+    gap_params_init();
+    gatt_init();
+    services_init();
+    advertising_init();
+    conn_params_init();
+
+    // Start execution.
+    printf("\r\nUART started.\r\n");
+    NRF_LOG_INFO("Debug logging for UART over RTT started.");
+    
+    // Now that SoftDevice is initialized, we can safely initialize GPIO pins
+    // Initialize 5V enable pin (P0.09)
+    nrf_gpio_cfg_output(9);
+    nrf_gpio_pin_set(9);  // Set HIGH to enable 5V power
+    NRF_LOG_INFO("5V enable pin (P0.09) set HIGH");
+    NRF_LOG_FLUSH();
+    
+    // Initialize LED matrix GPIO after SoftDevice init to avoid conflicts
+    nrf_gpio_cfg_output(MATRIX_DATA_PIN);
+    matrix_clear();
+    NRF_LOG_INFO("LED matrix GPIO initialized on pin %d", MATRIX_DATA_PIN);
+    NRF_LOG_FLUSH();
+    
+    // Send initial frame to show first LED
+    matrix_draw_first_led_only(0, 10, 0);  // Green LED to indicate initialization
+    matrix_show();
+    NRF_LOG_INFO("LED matrix first frame sent");
+    NRF_LOG_FLUSH();
+    
+    // Start LED matrix update timer (runs independently from BLE)
+    ret_code_t err_code = app_timer_start(m_led_update_timer_id,
+                                           APP_TIMER_TICKS(LED_UPDATE_INTERVAL_MS),
+                                           NULL);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("LED matrix update timer started (%d ms interval)", LED_UPDATE_INTERVAL_MS);
+    NRF_LOG_FLUSH();
+    
+    advertising_start();
+
+    // Enter main loop.
+    for (;;)
+    {
+        idle_state_handle();
+    }
+}
+
+
+/**
+ * @}
+ */

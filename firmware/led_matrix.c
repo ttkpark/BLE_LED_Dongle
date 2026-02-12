@@ -8,6 +8,7 @@
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 #include "led_matrix.h"
+#include "nrf_sdh.h"
 
 /* Disable SysTick during WS2812 output so 1ms IRQ doesn't disturb timing */
 #define SYSTICK_CTRL         (*(volatile uint32_t *)0xE000E010)
@@ -135,12 +136,43 @@ void matrix_fill(uint8_t r, uint8_t g, uint8_t b)
 
 void matrix_show(void)
 {
+    // WS2812 requires precise timing (~800ns per bit, ~24us per LED)
+    // For 144 LEDs: ~3.5ms total transmission time
+    // Strategy: Give SoftDevice priority - only update when SoftDevice is completely idle
+    // This minimizes SoftDevice API calls and gives SoftDevice full control
+    
+    // Check if SoftDevice is enabled and not suspended before proceeding
+    // If SoftDevice is busy, we skip this update (caller should retry later)
+    // This gives SoftDevice priority - if it's busy, LED update is skipped
+    if (!nrf_sdh_is_enabled() || nrf_sdh_is_suspended())
+    {
+        // SoftDevice is not ready - skip this update
+        // This gives SoftDevice priority over LED updates
+        return;
+    }
+    
+    // Disable ALL interrupts globally (including SoftDevice IRQ)
+    // This is necessary for WS2812 timing accuracy
+    // We only do this when SoftDevice is idle, minimizing interference
+    // No nrf_sdh_suspend() call - we rely on caller to ensure SoftDevice is idle
+    __disable_irq();
+    
+    // Also disable SysTick to prevent 1ms IRQ from disturbing timing
     uint32_t ctrl = SYSTICK_CTRL;
     SYSTICK_CTRL = ctrl & ~SYSTICK_CTRL_ENABLE;
+    
+    // Send all LED data (critical timing section - MUST be interrupt-free)
+    // This takes ~3.5ms for 144 LEDs - short enough for BLE to handle
     for (uint16_t i = 0; i < sizeof(g_fb); i++)
         ws2812_send_byte(g_fb[i]);
     ws2812_send_reset();
+    
+    // Restore SysTick
     SYSTICK_CTRL = ctrl;
+    
+    // Re-enable interrupts immediately after transmission
+    __enable_irq();
+    
     NRF_LOG_INFO("matrix frame sent");
 }
 

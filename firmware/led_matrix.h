@@ -13,7 +13,7 @@
 #define MATRIX_H       12
 #define MATRIX_N       (MATRIX_W * MATRIX_H)
 
-/* GPIO pin for matrix data (DIN). If all LEDs stay white, try 4, 5, 7, 8 to match schematic. */
+/* GPIO pin for matrix data (DIN). Pin 6 is used for LED matrix. BSP LEDs moved to 21-24 via custom_board.h */
 #ifndef MATRIX_DATA_PIN
 #define MATRIX_DATA_PIN  6
 #endif

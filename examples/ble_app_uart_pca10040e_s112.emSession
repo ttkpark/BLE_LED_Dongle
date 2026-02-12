@@ -28,6 +28,9 @@
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
+  <ProjectSessionItem path=""/>
+  <ProjectSessionItem path=""/>
+  <ProjectSessionItem path=""/>
  </Project>
  <Register1>
   <RegisterWindow invisibleNodes="" visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/MSP;CPU/PSP;CPU/PRIMASK;CPU/BASEPRI;CPU/FAULTMASK;CPU/CONTROL;CPU/internal" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context" name="ble_app_uart_pca10040e_s112_Release" decimalNodes="" octalNodes="" unsignedNodes=""/>
@@ -62,10 +65,11 @@
  <Files>
   <SessionOpenFile windowGroup="DockEditLeft" x="9" y="55" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h" left="0" top="42" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="22" y="100" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/uart/retarget.c" left="0" top="87" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="29" y="79" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" left="0" top="62" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.c" left="0" selected="1" top="73" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="1" y="79" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" left="0" top="62" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="44" y="78" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.c" left="0" top="66" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="48" y="60" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf52810.s" left="0" top="52" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="822" useTextEdit="1" path="main.c" left="0" top="803" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="800" useTextEdit="1" path="main.c" left="0" selected="1" top="797" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="54" y="12" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT.c" left="0" top="0" codecName="Default"/>
  </Files>
  <EMStudioWindow activeProject="ble_app_uart_pca10040e_s112" fileDialogDefaultFilter="*.h" autoConnectTarget="J-Link" buildConfiguration="Release" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="C:/Users/GH/Desktop/BLE_LED_Dongle/firmware" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

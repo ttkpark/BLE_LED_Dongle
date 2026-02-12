@@ -64,7 +64,28 @@ Output/Release/Obj/ble_app_uart_pca10040e_s112/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh_ble.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_clock.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_gatt/nrf_ble_gatt.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_qwr/nrf_ble_qwr.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/timer/app_timer.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdio.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/sortlist/nrf_sortlist.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_services/ble_nus/ble_nus.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_state.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic/nrf_atomic.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util_platform.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_nvic.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp_btn_ble.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_gpio.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/nrfx.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
@@ -74,37 +95,12 @@ Output/Release/Obj/ble_app_uart_pca10040e_s112/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/apply_old_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_irqs.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_irqs_nrf52810.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util_platform.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_nvic.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdio.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_coredep.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_atomic.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_resources.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sd_def.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_errors.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_clock.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_power_clock.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_gatt/nrf_ble_gatt.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_qwr/nrf_ble_qwr.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/timer/app_timer.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/sortlist/nrf_sortlist.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_services/ble_nus/ble_nus.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_state.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic/nrf_atomic.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/uart/app_uart.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp_btn_ble.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_gpio.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/pca10040.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/pwr_mgmt/nrf_pwr_mgmt.h \

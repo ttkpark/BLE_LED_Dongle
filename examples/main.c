@@ -60,12 +60,12 @@
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
-#include "nrfx_clock.h"
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "app_timer.h"
 #include "ble_nus.h"
-#include "app_uart.h"
+// UART disabled - using RTT only
+// #include "app_uart.h"
 #include "app_util_platform.h"
 #include "bsp_btn_ble.h"
 #include "nrf_pwr_mgmt.h"
@@ -201,25 +201,27 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
     {
         uint32_t err_code;
 
-        NRF_LOG_DEBUG("Received data from BLE NUS. Writing data on UART.");
+        NRF_LOG_INFO("Received data from BLE NUS. Writing data via RTT.");
         NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
 
-        for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-        {
-            do
-            {
-                err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
-                if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-                {
-                    NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
-                    APP_ERROR_CHECK(err_code);
-                }
-            } while (err_code == NRF_ERROR_BUSY);
-        }
-        if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
-        {
-            while (app_uart_put('\n') == NRF_ERROR_BUSY);
-        }
+        // UART disabled - using RTT only
+        // Print received data via RTT (already logged above)
+        // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
+        // {
+        //     do
+        //     {
+        //         err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
+        //         if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
+        //         {
+        //             NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
+        //             APP_ERROR_CHECK(err_code);
+        //         }
+        //     } while (err_code == NRF_ERROR_BUSY);
+        // }
+        // if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
+        // {
+        //     while (app_uart_put('\n') == NRF_ERROR_BUSY);
+        // }
     }
 
 }
@@ -338,13 +340,57 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
+            NRF_LOG_INFO("BLE_ADV_EVT_FAST: Fast advertising started");
+            NRF_LOG_FLUSH();
+            
+            // Set TX power to maximum for better range and discoverability
+            // This must be done after advertising starts, when handle is available
+            err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_advertising.adv_handle, 4);
+            if (err_code != NRF_SUCCESS)
+            {
+                NRF_LOG_ERROR("sd_ble_gap_tx_power_set failed: 0x%08X", err_code);
+                NRF_LOG_FLUSH();
+            }
+            else
+            {
+                NRF_LOG_INFO("TX power set to +4dBm (handle: %d)", m_advertising.adv_handle);
+                NRF_LOG_FLUSH();
+            }
+            
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            APP_ERROR_CHECK(err_code);
+            break;
+        case BLE_ADV_EVT_SLOW:
+            NRF_LOG_INFO("BLE_ADV_EVT_SLOW: Slow advertising started");
+            NRF_LOG_FLUSH();
+            
+            // Set TX power to maximum for better range and discoverability
+            // This must be done after advertising starts, when handle is available
+            err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_advertising.adv_handle, 4);
+            if (err_code != NRF_SUCCESS)
+            {
+                NRF_LOG_ERROR("sd_ble_gap_tx_power_set failed: 0x%08X", err_code);
+                NRF_LOG_FLUSH();
+            }
+            else
+            {
+                NRF_LOG_INFO("TX power set to +4dBm (handle: %d)", m_advertising.adv_handle);
+                NRF_LOG_FLUSH();
+            }
+            
             err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
             APP_ERROR_CHECK(err_code);
             break;
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+            NRF_LOG_INFO("BLE_ADV_EVT_IDLE: Advertising stopped");
+            NRF_LOG_FLUSH();
+            // Don't enter sleep mode here - ble_advertising module will automatically
+            // restart advertising in the next mode (slow advertising)
+            // sleep_mode_enter() should only be called when user explicitly requests it
             break;
         default:
+            NRF_LOG_INFO("BLE advertising event: %d", ble_adv_evt);
+            NRF_LOG_FLUSH();
             break;
     }
 }
@@ -421,62 +467,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 }
 
 
-/* Clock event handler (not used, but required by nrfx_clock_init) */
-static void clock_event_handler(nrfx_clock_evt_type_t event)
-{
-    (void)event;
-}
-
-/* Start 32MHz external crystal (HFXO) before SoftDevice initialization */
-static void start_32mhz_crystal_before_softdevice(void)
-{
-    NRF_LOG_INFO("Starting 32MHz external crystal (HFXO) before SoftDevice init...");
-    NRF_LOG_FLUSH();
-    
-    // Initialize nrfx_clock driver
-    nrfx_err_t err = nrfx_clock_init(clock_event_handler);
-    if (err != NRFX_SUCCESS)
-    {
-        NRF_LOG_ERROR("nrfx_clock_init failed: 0x%08X", err);
-        NRF_LOG_FLUSH();
-        return;
-    }
-    
-    // Start HFXO (32MHz external crystal)
-    nrfx_clock_hfclk_start();
-    
-    // Wait for HFXO to be ready (SoftDevice needs this)
-    volatile uint32_t timeout = 1000000;  // 1 second timeout
-    while (!nrfx_clock_hfclk_is_running() && timeout-- > 0)
-    {
-        __NOP();
-    }
-    
-    if (nrfx_clock_hfclk_is_running())
-    {
-        // Verify it's using XTAL, not RC
-        uint32_t hfclkstat = NRF_CLOCK->HFCLKSTAT;
-        bool is_xtal = (hfclkstat & CLOCK_HFCLKSTAT_SRC_Msk) == (CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos);
-        
-        if (is_xtal)
-        {
-            NRF_LOG_INFO("32MHz external crystal (HFXO) is now running - ready for SoftDevice");
-            NRF_LOG_FLUSH();
-        }
-        else
-        {
-            NRF_LOG_WARNING("HFCLK is running but source is RC, not XTAL!");
-            NRF_LOG_FLUSH();
-        }
-    }
-    else
-    {
-        NRF_LOG_ERROR("32MHz crystal failed to start! SoftDevice may fail to initialize");
-        NRF_LOG_ERROR("Check: 1) Crystal connected? 2) Load capacitors? 3) Power supply?");
-        NRF_LOG_FLUSH();
-    }
-}
-
 /**@brief Function for the SoftDevice initialization.
  *
  * @details This function initializes the SoftDevice and the BLE event interrupt.
@@ -485,25 +475,45 @@ static void ble_stack_init(void)
 {
     ret_code_t err_code;
 
-    // CRITICAL: Start 32MHz crystal BEFORE SoftDevice initialization
-    // SoftDevice requires 32MHz external crystal (HFXO) for BLE operation
-    start_32mhz_crystal_before_softdevice();
-
+    NRF_LOG_INFO("Initializing SoftDevice...");
+    NRF_LOG_FLUSH();
     err_code = nrf_sdh_enable_request();
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_enable_request failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
     APP_ERROR_CHECK(err_code);
 
     // Configure the BLE stack using the default settings.
     // Fetch the start address of the application RAM.
     uint32_t ram_start = 0;
+    NRF_LOG_INFO("Configuring BLE stack...");
+    NRF_LOG_FLUSH();
     err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_ble_default_cfg_set failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
     APP_ERROR_CHECK(err_code);
 
     // Enable BLE stack.
+    NRF_LOG_INFO("Enabling BLE stack...");
+    NRF_LOG_FLUSH();
     err_code = nrf_sdh_ble_enable(&ram_start);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("nrf_sdh_ble_enable failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
     APP_ERROR_CHECK(err_code);
 
     // Register a handler for BLE events.
     NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+    
+    NRF_LOG_INFO("BLE stack initialized successfully");
+    NRF_LOG_FLUSH();
 }
 
 
@@ -579,6 +589,8 @@ void bsp_event_handler(bsp_event_t event)
  *          'new line' '\n' (hex 0x0A) or if the string has reached the maximum data length.
  */
 /**@snippet [Handling the data received over UART] */
+// UART disabled - using RTT only
+#if 0
 void uart_event_handle(app_uart_evt_t * p_event)
 {
     static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
@@ -629,12 +641,15 @@ void uart_event_handle(app_uart_evt_t * p_event)
             break;
     }
 }
+#endif
 /**@snippet [Handling the data received over UART] */
 
 
 /**@brief  Function for initializing the UART module.
  */
 /**@snippet [UART Initialization] */
+// UART disabled - using RTT only
+#if 0
 static void uart_init(void)
 {
     uint32_t                     err_code;
@@ -661,6 +676,7 @@ static void uart_init(void)
                        err_code);
     APP_ERROR_CHECK(err_code);
 }
+#endif
 /**@snippet [UART Initialization] */
 
 
@@ -675,7 +691,7 @@ static void advertising_init(void)
 
     init.advdata.name_type          = BLE_ADVDATA_FULL_NAME;
     init.advdata.include_appearance = false;
-    init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;
+    init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
     init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
     init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
@@ -683,12 +699,24 @@ static void advertising_init(void)
     init.config.ble_adv_fast_enabled  = true;
     init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
     init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
+    init.config.ble_adv_slow_enabled  = true;
+    init.config.ble_adv_slow_interval = APP_ADV_INTERVAL;  // Same interval as fast for better discoverability
+    init.config.ble_adv_slow_timeout  = 0;  // 0 = no timeout, advertise indefinitely
     init.evt_handler = on_adv_evt;
 
+    NRF_LOG_INFO("Initializing BLE advertising...");
+    NRF_LOG_FLUSH();
     err_code = ble_advertising_init(&m_advertising, &init);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("ble_advertising_init failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
     APP_ERROR_CHECK(err_code);
 
     ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
+    NRF_LOG_INFO("BLE advertising initialized successfully");
+    NRF_LOG_FLUSH();
 }
 
 
@@ -748,8 +776,17 @@ static void idle_state_handle(void)
  */
 static void advertising_start(void)
 {
+    NRF_LOG_INFO("Starting BLE advertising...");
+    NRF_LOG_FLUSH();
     uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("ble_advertising_start failed: 0x%08X", err_code);
+        NRF_LOG_FLUSH();
+    }
     APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("BLE advertising started");
+    NRF_LOG_FLUSH();
 }
 
 
@@ -760,7 +797,7 @@ int main(void)
     bool erase_bonds;
 
     // Initialize.
-    uart_init();
+    // uart_init();  // UART disabled - using RTT only
     log_init();
     timers_init();
     buttons_leds_init(&erase_bonds);

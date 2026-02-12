@@ -69,4 +69,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
- C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section_iter.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section.h

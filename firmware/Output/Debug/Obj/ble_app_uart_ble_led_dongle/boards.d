@@ -58,4 +58,4 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/boards.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sd_def.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_errors.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/pca10040.h
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/custom_board.h
