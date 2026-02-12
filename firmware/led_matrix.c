@@ -1,96 +1,98 @@
 /**
- * 12x12 WS2812B matrix: frame buffer and bit-bang output.
- * matrix_show() sends to matrix then prints to RTT.
- * English only.
+ * 12x12 WS2812B matrix: PWM EasyDMA output.
+ * Uses PWM EasyDMA to automatically send WS2812 protocol without CPU intervention.
+ * This eliminates the need for interrupt disabling and works seamlessly with SoftDevice.
+ * 
+ * PWM configuration:
+ * - Base clock: 16MHz
+ * - Top value: 20 (800ns per PWM period = WS2812 bit period)
+ * - Bit '0': HIGH 312ns = 6 PWM cycles, LOW 936ns = 14 PWM cycles
+ * - Bit '1': HIGH 625ns = 12 PWM cycles, LOW 625ns = 8 PWM cycles
  */
 
+#include "sdk_config.h"
 #include "nrf.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 #include "led_matrix.h"
-#include "nrf_sdh.h"
-
-/* Disable SysTick during WS2812 output so 1ms IRQ doesn't disturb timing */
-#define SYSTICK_CTRL         (*(volatile uint32_t *)0xE000E010)
-#define SYSTICK_CTRL_ENABLE  (1u << 0)
+#include "nrfx_pwm.h"
+#include "app_util_platform.h"
 
 /* GRB buffer for 144 LEDs */
 static uint8_t g_fb[MATRIX_N * 3];
 
-/*
- * WS2812 timing.
- *
- * --- Assembly trial-and-error (시행착오) ---
- * - set/reset were not inlined (BL in disasm) → return + BL added ~10cy, so T0H was always long.
- * - T0H with 2 NOPs (no inline): total ~12cy but 0 not recognized → LED all white.
- * - T0H with 4 NOPs (no inline): ~14cy, over 380ns spec; with 3 NOPs still >380ns.
- * - NOP 많이 줄였을 때 초록 나옴 → shorter timing was correct direction.
- * - Fix: __attribute__((always_inline)) on matrix_pin_set/reset → no BL; High = (STR ~4cy) + NOPs + (STR ~4cy).
- * - T0H = 2 NOPs → ~10cy ~312ns (in spec 220~380ns). T1H = 16 NOPs. T0L = 16 NOPs (T0H+T0L>=40cy). T1L = 2 NOPs (min for T1H+T1L>=40cy).
- * - In disasm: count from STR 0x0508 (OUTSET) to STR 0x050C (OUTCLR) = high; STR 0x050C to next STR 0x0508 = low. 1cy @ 32MHz = 31.25ns.
+/* PWM instance for WS2812 control */
+static nrfx_pwm_t m_pwm;
+
+/* PWM buffer: Each WS2812 bit = 1 PWM sequence value
+ * 144 LEDs × 3 bytes × 8 bits = 3,456 PWM values
+ * Plus reset pulse: ~350 PWM values of zeros (280us at 800ns per value)
  */
-void delay_cycles(uint32_t n)
-{
-    while (n--) { __NOP(); __NOP(); }
-}
+#define WS2812_PWM_BUFFER_SIZE  (MATRIX_N * 3 * 8 + 350)
+static nrf_pwm_values_common_t g_pwm_buffer[WS2812_PWM_BUFFER_SIZE];
 
-static inline __attribute__((always_inline)) void matrix_pin_set(uint32_t pin)
-{
-    NRF_P0->OUTSET = (1UL << pin);
-}
+/* Flag to track PWM transfer completion */
+static volatile bool m_pwm_transfer_complete = false;
 
-static inline __attribute__((always_inline)) void matrix_pin_reset(uint32_t pin)
-{
-    NRF_P0->OUTCLR = (1UL << pin);
-}
-
-/* Exact NOP counts for binary-level timing (tune in disasm). 1 NOP = 1 cycle. */
-#define _NOP1()   __NOP()
-#define _NOP2()   _NOP1(); _NOP1()
-#define _NOP3()   _NOP2(); _NOP1()
-#define _NOP4()   _NOP2(); _NOP2()
-#define _NOP8()   _NOP4(); _NOP4()
-#define _NOP16()  _NOP8(); _NOP8()
-/*
- * Inlined: High = (STR OUTSET ~4cy) + NOPs + (STR OUTCLR ~4cy). Low = (OUTCLR ~4cy) + NOPs + (byte<<=1, loop, SET ~14cy).
- * T0H+T0L >= 40cy, T1H+T1L >= 40cy; T0L/T1L spec 580ns~1us (19~32cy). Minimize LOW: T0L needs 30cy total so 30-14=16 NOPs; T1L needs 16cy total so 2 NOPs.
+/**
+ * @brief PWM event handler - called when transfer completes
  */
-/* Final working set (disasm tuning): T0H=2, T1H=16, T0L=16, T1L=2 NOPs + inlined set/reset. */
-#define WS2812_EMIT_NOP_T0H()  _NOP2()           /* high '0' */
-#define WS2812_EMIT_NOP_T1H()  _NOP8(); _NOP8()  /* high '1' */
-#define WS2812_EMIT_NOP_T0L()  _NOP8(); _NOP8()  /* low '0' */
-#define WS2812_EMIT_NOP_T1L()  _NOP2()           /* low '1' */
-
-
-void ws2812_send_byte(uint8_t byte)
+static void pwm_event_handler(nrfx_pwm_evt_type_t event_type)
 {
-    uint32_t pin = MATRIX_DATA_PIN;
-    for (int8_t b = 7; b >= 0; b--)
+    if (event_type == NRFX_PWM_EVT_FINISHED)
     {
-        matrix_pin_set(pin);
-        if (byte & 0x80)
-        {
-            WS2812_EMIT_NOP_T1H();
-            matrix_pin_reset(pin);
-            WS2812_EMIT_NOP_T1L();
-        }
-        else
-        {
-            WS2812_EMIT_NOP_T0H();
-            matrix_pin_reset(pin);
-            WS2812_EMIT_NOP_T0L();
-        }
-        byte <<= 1;
+        m_pwm_transfer_complete = true;
     }
 }
 
-/* RTE: end of transmission = low pulse >280us. Hold data line low. */
-void ws2812_send_reset(void)
+/**
+ * @brief Encode WS2812 byte to PWM values
+ * Each WS2812 bit is encoded as PWM duty cycle:
+ * - Bit '0': HIGH 312ns (6 cycles), LOW 936ns (14 cycles) → PWM value: 6 (out of 20)
+ * - Bit '1': HIGH 625ns (12 cycles), LOW 625ns (8 cycles) → PWM value: 12 (out of 20)
+ * 
+ * @param byte WS2812 data byte (GRB format)
+ * @param pwm_buffer Output buffer for PWM values (8 values for 8 bits)
+ */
+static void encode_ws2812_byte(uint8_t byte, nrf_pwm_values_common_t *pwm_buffer)
 {
-    uint32_t pin = MATRIX_DATA_PIN;
-    matrix_pin_reset(pin);
-    for (volatile uint32_t i = 0; i < WS2812_RES_NOP; i++) { __NOP(); }
-    /* Leave pin low until next frame. */
+    for (int8_t bit = 7; bit >= 0; bit--)
+    {
+        if (byte & (1 << bit))
+        {
+            // Bit '1': HIGH 625ns = 12 cycles out of 20
+            *pwm_buffer++ = 12;
+        }
+        else
+        {
+            // Bit '0': HIGH 312ns = 6 cycles out of 20
+            *pwm_buffer++ = 6;
+        }
+    }
+}
+
+/**
+ * @brief Initialize PWM for WS2812 control
+ * Must be called before matrix_show().
+ */
+void matrix_spi_init(void)
+{
+    nrfx_pwm_config_t pwm_config = NRFX_PWM_DEFAULT_CONFIG;
+    pwm_config.output_pins[0] = MATRIX_DATA_PIN | NRFX_PWM_PIN_INVERTED;  // Inverted for WS2812
+    pwm_config.output_pins[1] = NRFX_PWM_PIN_NOT_USED;
+    pwm_config.output_pins[2] = NRFX_PWM_PIN_NOT_USED;
+    pwm_config.output_pins[3] = NRFX_PWM_PIN_NOT_USED;
+    pwm_config.base_clock = NRF_PWM_CLK_16MHz;  // 16MHz base clock
+    pwm_config.count_mode = NRF_PWM_MODE_UP;     // Up counting mode
+    pwm_config.top_value = 20;                    // 800ns per PWM period (20 cycles @ 16MHz)
+    pwm_config.load_mode = NRF_PWM_LOAD_COMMON;   // Common load mode
+    pwm_config.step_mode = NRF_PWM_STEP_AUTO;     // Auto step mode
+    pwm_config.irq_priority = APP_IRQ_PRIORITY_LOWEST;  // Low priority to not interfere with SoftDevice
+    
+    ret_code_t err_code = nrfx_pwm_init(&m_pwm, &pwm_config, pwm_event_handler);
+    APP_ERROR_CHECK(err_code);
+    
+    NRF_LOG_INFO("PWM initialized for WS2812 on pin %d", MATRIX_DATA_PIN);
 }
 
 void matrix_set_pixel(uint8_t row, uint8_t col, uint8_t r, uint8_t g, uint8_t b)
@@ -127,58 +129,79 @@ void matrix_draw_first_led_only(uint8_t r, uint8_t g, uint8_t b)
     g_fb[2] = b;
 }
 
-/* Fill entire panel with one RGB (0..255). */
 void matrix_fill(uint8_t r, uint8_t g, uint8_t b)
 {
     for (uint16_t i = 0; i < MATRIX_N; i++)
         matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), r, g, b);
 }
 
+/**
+ * @brief Send LED matrix data via PWM EasyDMA
+ * This function uses PWM EasyDMA to automatically send WS2812 protocol.
+ * No interrupt disabling needed - works seamlessly with SoftDevice.
+ */
 void matrix_show(void)
 {
-    // WS2812 requires precise timing (~800ns per bit, ~24us per LED)
-    // For 144 LEDs: ~3.5ms total transmission time
-    // Strategy: Give SoftDevice priority - only update when SoftDevice is completely idle
-    // This minimizes SoftDevice API calls and gives SoftDevice full control
+    uint16_t pwm_idx = 0;
     
-    // Check if SoftDevice is enabled and not suspended before proceeding
-    // If SoftDevice is busy, we skip this update (caller should retry later)
-    // This gives SoftDevice priority - if it's busy, LED update is skipped
-    if (!nrf_sdh_is_enabled() || nrf_sdh_is_suspended())
+    // Encode all LED data to PWM values
+    // Each WS2812 byte (8 bits) becomes 8 PWM values (one per WS2812 bit)
+    for (uint16_t i = 0; i < sizeof(g_fb); i++)
     {
-        // SoftDevice is not ready - skip this update
-        // This gives SoftDevice priority over LED updates
+        encode_ws2812_byte(g_fb[i], &g_pwm_buffer[pwm_idx]);
+        pwm_idx += 8;  // 8 WS2812 bits = 8 PWM values
+    }
+    
+    // Add reset pulse: ~350 PWM values of zeros (280us at 800ns per value)
+    for (uint16_t i = 0; i < 350; i++)
+    {
+        g_pwm_buffer[pwm_idx++] = 0;
+    }
+    
+    // Reset transfer complete flag
+    m_pwm_transfer_complete = false;
+    
+    // Configure PWM sequence
+    nrf_pwm_sequence_t pwm_sequence;
+    pwm_sequence.values.p_common = g_pwm_buffer;
+    pwm_sequence.length = pwm_idx;
+    pwm_sequence.repeats = 0;
+    pwm_sequence.end_delay = 0;
+    
+    // Start PWM transfer using EasyDMA
+    // This will automatically send data without CPU intervention
+    ret_code_t err_code = nrfx_pwm_simple_playback(&m_pwm, &pwm_sequence, 1, NRFX_PWM_FLAG_STOP);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("PWM transfer failed: 0x%08X", err_code);
         return;
     }
     
-    // Disable ALL interrupts globally (including SoftDevice IRQ)
-    // This is necessary for WS2812 timing accuracy
-    // We only do this when SoftDevice is idle, minimizing interference
-    // No nrf_sdh_suspend() call - we rely on caller to ensure SoftDevice is idle
-    __disable_irq();
+    // Wait for transfer to complete (non-blocking, but we wait here for now)
+    // In the future, this could be made fully asynchronous
+    uint32_t timeout = 1000000;  // 1 second timeout
+    while (!m_pwm_transfer_complete && timeout--)
+    {
+        __NOP();
+    }
     
-    // Also disable SysTick to prevent 1ms IRQ from disturbing timing
-    uint32_t ctrl = SYSTICK_CTRL;
-    SYSTICK_CTRL = ctrl & ~SYSTICK_CTRL_ENABLE;
-    
-    // Send all LED data (critical timing section - MUST be interrupt-free)
-    // This takes ~3.5ms for 144 LEDs - short enough for BLE to handle
-    for (uint16_t i = 0; i < sizeof(g_fb); i++)
-        ws2812_send_byte(g_fb[i]);
-    ws2812_send_reset();
-    
-    // Restore SysTick
-    SYSTICK_CTRL = ctrl;
-    
-    // Re-enable interrupts immediately after transmission
-    __enable_irq();
-    
-    NRF_LOG_INFO("matrix frame sent");
+    if (m_pwm_transfer_complete)
+    {
+        NRF_LOG_INFO("matrix frame sent via PWM EasyDMA");
+    }
+    else
+    {
+        NRF_LOG_ERROR("PWM transfer timeout");
+    }
 }
 
 void matrix_delay_1sec(void)
 {
-    delay_cycles(DELAY_1SEC_CYCLES);
+    // Simple delay - can be improved with app_timer if needed
+    for (volatile uint32_t i = 0; i < 1000000; i++)
+    {
+        __NOP();
+    }
 }
 
 void matrix_update_once(uint8_t dim)

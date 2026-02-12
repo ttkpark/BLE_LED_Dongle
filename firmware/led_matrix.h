@@ -18,6 +18,11 @@
 #define MATRIX_DATA_PIN  6
 #endif
 
+/* PWM configuration for WS2812 control via EasyDMA */
+#ifndef WS2812_PWM_INSTANCE
+#define WS2812_PWM_INSTANCE  0  /* PWM0 */
+#endif
+
 /* 1 = board inverts data (e.g. N-MOS). Pin to VCC/GND=off, release=white -> try 0. */
 #ifndef WS2812_INVERT_DATA
 #define WS2812_INVERT_DATA  0
@@ -72,12 +77,12 @@ void matrix_show(void);
 void matrix_draw_first_led_only(uint8_t r, uint8_t g, uint8_t b);
 void matrix_fill(uint8_t r, uint8_t g, uint8_t b);
 
+/** Initialize SPI for WS2812 control. Must be called before matrix_show(). */
+void matrix_spi_init(void);
+
 /** Delay ~1s; uses same timing scale as WS2812. */
 void matrix_delay_1sec(void);
 
 /** One periodic update: fill panel with (dim,dim,dim) and show (all LED output here). */
 void matrix_update_once(uint8_t dim);
-void ws2812_send_reset(void);
-void ws2812_send_byte(uint8_t byte);
-void delay_cycles(uint32_t n);
 #endif

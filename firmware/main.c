@@ -901,10 +901,10 @@ int main(void)
     NRF_LOG_INFO("5V enable pin (P0.09) set HIGH");
     NRF_LOG_FLUSH();
     
-    // Initialize LED matrix GPIO after SoftDevice init to avoid conflicts
-    nrf_gpio_cfg_output(MATRIX_DATA_PIN);
+    // Initialize SPI for LED matrix (uses EasyDMA, no GPIO config needed)
+    matrix_spi_init();
     matrix_clear();
-    NRF_LOG_INFO("LED matrix GPIO initialized on pin %d", MATRIX_DATA_PIN);
+    NRF_LOG_INFO("LED matrix SPI initialized on pin %d", MATRIX_DATA_PIN);
     NRF_LOG_FLUSH();
     
     // Send initial frame to show first LED

@@ -3,9 +3,7 @@
  <Bookmarks/>
  <Breakpoints groups="Breakpoints" active_group="Breakpoints">
   <BreakpointListItem trigger="" line="75" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" stopAll="false" group="Breakpoints" type="Breakpoint" state="4" filename="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf52810.s" useHWbreakpoint="false"/>
-  <Exceptions>
-   <Group group="V7M Exceptions" set="BusFault;ExceptionEntryReturnFault;HardFault;MemManage;UsageFault_CheckingError;UsageFault_Coprocessor;UsageFault_StateError"/>
-  </Exceptions>
+  <Exceptions/>
  </Breakpoints>
  <ExecutionProfileWindow/>
  <FrameBuffer>
@@ -24,6 +22,8 @@
   <MemoryWindow addressSpace="" dataSize="1" autoEvaluate="0" viewMode="0" viewType="4" addressOrder="0" columnsText="" refreshPeriod="0" name="ble_app_uart_ble_led_dongle_Debug" sizeText="" addressText=""/>
  </Memory4>
  <Project>
+  <ProjectSessionItem path=""/>
+  <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
   <ProjectSessionItem path=""/>
@@ -60,14 +60,8 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="36" y="57" useTextEdit="1" path="led_matrix.h" left="0" top="36" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="795" useTextEdit="1" path="main.c" left="0" selected="1" top="787" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="5" y="104" useTextEdit="1" path="led_matrix.c" left="0" top="73" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="325" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sdm.h" left="0" top="304" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="213" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.c" left="0" top="192" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="296" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" left="0" top="256" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="21" y="102" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.h" left="0" top="83" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="91" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf52810.s" left="0" top="72" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="25" y="3178" useTextEdit="1" path="config/sdk_config.h" left="0" top="3164" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="18" y="13" useTextEdit="1" path="main.c" left="0" selected="1" top="0" codecName="Default"/>
  </Files>
- <EMStudioWindow activeProject="ble_app_uart_ble_led_dongle" fileDialogDefaultFilter="*.h" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="C:/Users/GH/Desktop/BLE_LED_Dongle/firmware" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <EMStudioWindow activeProject="ble_app_uart_ble_led_dongle" fileDialogDefaultFilter="*.h" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="C:/Users/GH/Desktop/BLE_LED_Dongle/firmware" debugSearchPath="" autoConnectCapabilities="3199"/>
 </session>
