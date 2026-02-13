@@ -76,6 +76,8 @@ void matrix_draw_x(uint8_t r, uint8_t g, uint8_t b);
 void matrix_show(void);
 void matrix_draw_first_led_only(uint8_t r, uint8_t g, uint8_t b);
 void matrix_fill(uint8_t r, uint8_t g, uint8_t b);
+/** Test function: Send only first LED with detailed logging for debugging */
+void matrix_test_single_led(uint8_t r, uint8_t g, uint8_t b);
 
 /** Initialize SPI for WS2812 control. Must be called before matrix_show(). */
 void matrix_spi_init(void);

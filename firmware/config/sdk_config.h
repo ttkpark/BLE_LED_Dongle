@@ -2384,15 +2384,13 @@
 
 // <e> NRFX_PWM_ENABLED - nrfx_pwm - PWM peripheral driver
 //==========================================================
-#ifndef NRFX_PWM_ENABLED
+#undef NRFX_PWM_ENABLED
 #define NRFX_PWM_ENABLED 1
-#endif
 // <q> NRFX_PWM0_ENABLED  - Enable PWM0 instance
  
 
-#ifndef NRFX_PWM0_ENABLED
+#undef NRFX_PWM0_ENABLED
 #define NRFX_PWM0_ENABLED 1
-#endif
 
 // <o> NRFX_PWM_DEFAULT_CONFIG_OUT0_PIN - Out0 pin  <0-31> 
 
@@ -4306,9 +4304,8 @@
 
 // <e> PWM_ENABLED - nrf_drv_pwm - PWM peripheral driver - legacy layer
 //==========================================================
-#ifndef PWM_ENABLED
-#define PWM_ENABLED 0
-#endif
+#undef PWM_ENABLED
+#define PWM_ENABLED 1
 // <o> PWM_DEFAULT_CONFIG_OUT0_PIN - Out0 pin  <0-31> 
 
 
@@ -4406,9 +4403,8 @@
 // <q> PWM0_ENABLED  - Enable PWM0 instance
  
 
-#ifndef PWM0_ENABLED
-#define PWM0_ENABLED 0
-#endif
+#undef PWM0_ENABLED
+#define PWM0_ENABLED 1
 
 // <q> PWM1_ENABLED  - Enable PWM1 instance
  

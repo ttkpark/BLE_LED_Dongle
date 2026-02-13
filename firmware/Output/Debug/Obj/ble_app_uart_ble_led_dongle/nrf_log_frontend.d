@@ -1,14 +1,24 @@
-Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
- C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.c \
- C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
+Output/Debug/Obj/ble_app_uart_ble_led_dongle/nrf_log_frontend.o: \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_frontend.c \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_ConfDefaults.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Conf.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_Arm_Conf.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/compiler_abstraction.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_os.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_errors.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stddef.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_version.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_compiler.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/cmsis_gcc.h \
@@ -19,62 +29,39 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52_to_nrf52810.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810_name_change.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/compiler_abstraction.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_gpio.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/nrfx.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_config.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stddef.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdbool.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf_peripherals.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810_peripherals.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_glue.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/apply_old_config.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_irqs.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_irqs_nrf52810.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nrf_assert.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/compiler_abstraction.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf52/nrf_mbr.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_svc.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_macros.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nrf_assert.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util_platform.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_svc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_nvic.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nrf_assert.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdio.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_errors.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_coredep.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_atomic.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_errors.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_resources.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sd_def.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_errors.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_os.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_util.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_macros.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/experimental_section_vars/nrf_section.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/strerror/nrf_strerror.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_errors.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_internal.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_instance.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_types.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_internal.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_ctrl.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_ctrl_internal.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_backend_interface.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/memobj/nrf_memobj.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
- C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_pwm.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_pwm.h
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_backend_interface.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_str_formatter.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/fprintf/nrf_fprintf.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_ctrl.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/ringbuf/nrf_ringbuf.h \
+ C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic/nrf_atomic.h

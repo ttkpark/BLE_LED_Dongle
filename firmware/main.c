@@ -804,6 +804,9 @@ static void power_management_init(void)
  */
 static void idle_state_handle(void)
 {
+    // LED matrix update disabled - LED is updated only once at boot
+    // Periodic update code commented out to prevent confusion
+    /*
     // Handle LED matrix update if pending, but only when safe:
     // 1. BLE event is not being processed
     // 2. SoftDevice is enabled and not suspended
@@ -845,6 +848,7 @@ static void idle_state_handle(void)
         }
         // If SoftDevice is busy, keep the flag set and try again in next iteration
     }
+    */
     
     if (NRF_LOG_PROCESS() == false)
     {
@@ -901,24 +905,23 @@ int main(void)
     NRF_LOG_INFO("5V enable pin (P0.09) set HIGH");
     NRF_LOG_FLUSH();
     
-    // Initialize SPI for LED matrix (uses EasyDMA, no GPIO config needed)
-    matrix_spi_init();
-    matrix_clear();
-    NRF_LOG_INFO("LED matrix SPI initialized on pin %d", MATRIX_DATA_PIN);
+    // Initialize PWM for LED matrix and send all zeros to turn off LEDs
+    // PWM initialization may send default signals, so we immediately send zeros
+    matrix_spi_init();  // This will automatically send zeros to turn off all LEDs
+    NRF_LOG_INFO("LED matrix PWM initialized and all LEDs set to OFF");
     NRF_LOG_FLUSH();
     
-    // Send initial frame to show first LED
-    matrix_draw_first_led_only(0, 10, 0);  // Green LED to indicate initialization
-    matrix_show();
-    NRF_LOG_INFO("LED matrix first frame sent");
-    NRF_LOG_FLUSH();
+    // Test function commented out - only initialization (zeros) is sent
+    // matrix_test_single_led(0, 10, 0);
     
-    // Start LED matrix update timer (runs independently from BLE)
-    ret_code_t err_code = app_timer_start(m_led_update_timer_id,
-                                           APP_TIMER_TICKS(LED_UPDATE_INTERVAL_MS),
-                                           NULL);
-    APP_ERROR_CHECK(err_code);
-    NRF_LOG_INFO("LED matrix update timer started (%d ms interval)", LED_UPDATE_INTERVAL_MS);
+    // LED matrix update timer disabled - LED is updated only once at boot
+    // Timer start code commented out to prevent periodic updates
+    // ret_code_t err_code = app_timer_start(m_led_update_timer_id,
+    //                                        APP_TIMER_TICKS(LED_UPDATE_INTERVAL_MS),
+    //                                        NULL);
+    // APP_ERROR_CHECK(err_code);
+    // NRF_LOG_INFO("LED matrix update timer started (%d ms interval)", LED_UPDATE_INTERVAL_MS);
+    NRF_LOG_INFO("LED matrix update timer disabled - single update at boot only");
     NRF_LOG_FLUSH();
     
     advertising_start();
