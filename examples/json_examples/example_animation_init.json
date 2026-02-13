@@ -1,0 +1,11 @@
+{
+  "cmd": "set_animation_init",
+  "id": 2001,
+  "data": {
+    "total_frames": 100,
+    "fps": 20,
+    "loop": true,
+    "loop_count": 0,
+    "play_mode": "forward"
+  }
+}

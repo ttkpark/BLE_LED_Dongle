@@ -3,7 +3,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/nrf_drv_uart.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_uart.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/nrfx.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/nrfx_config.h \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \

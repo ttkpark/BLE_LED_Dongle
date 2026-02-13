@@ -107,7 +107,7 @@
 /** Send LED count over BLE at fixed interval (ms). Timer-based to avoid BLE TX buffer full (NRF_ERROR_RESOURCES). */
 #define BLE_SEND_COUNT_INTERVAL_MS      1000
 
-#define LED_UPDATE_INTERVAL_MS    5                                                /**< LED matrix update interval in milliseconds. Slower update to reduce BLE interference. */
+#define LED_UPDATE_INTERVAL_MS    50                                                /**< LED matrix update interval in milliseconds. Slower update to reduce BLE interference. */
 APP_TIMER_DEF(m_led_update_timer_id);                                               /**< Timer ID for LED matrix updates. */
 APP_TIMER_DEF(m_ble_send_count_timer_id);                                           /**< Timer ID for periodic BLE count send. */
 static volatile bool m_led_update_pending = false;                                  /**< Flag indicating LED matrix update is pending. */
@@ -883,13 +883,14 @@ static void idle_state_handle(void)
             //matrix_rainbow((uint8_t)m_led_pattern_counter);
             m_led_pattern_counter;
             
-            float amp = 4.2f;
+            float amp = 5.f;
             float phi = M_PI*2/3;
             for (uint16_t i = 0; i < MATRIX_N; i++){
-                float phase = M_PI*2*((m_led_pattern_counter%500)/500.f + (i/12)/12.f + (i%12)/12.f);
-                matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), amp*(sin(phase)+1.f), amp*(sin(phase+phi)+1.f), amp*(sin(phase+phi*2)+1.f));
+                float phase = M_PI*2*((m_led_pattern_counter%60)/60.f + (i/12)/12.f + (i%12)/12.f);
+                matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), amp*(sin(phase)+1.2f), amp*(sin(phase+phi)+1.2f), amp*(sin(phase+phi*2)+1.2f));
             }
-
+            //uint8_t light = (m_led_pattern_counter/50)%5;
+            //matrix_fill(light, light, light);
             matrix_show();
 
             /* Send LED count over BLE at fixed interval (timer-driven) to avoid NRF_ERROR_RESOURCES. */
@@ -934,7 +935,6 @@ int main(void)
     bool erase_bonds;
 
     // Initialize.
-    // uart_init();  // UART disabled - using RTT only
     log_init();
     timers_init();
     buttons_leds_init(&erase_bonds);

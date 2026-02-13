@@ -29,7 +29,7 @@ static nrfx_pwm_t m_pwm;
  * 1 leading + 144 LEDs × 3 bytes × 8 bits = 3,456 + 400 reset
  */
 #define WS2812_PWM_PREP_LEN     10
-#define WS2812_PWM_RESET_LEN    200
+#define WS2812_PWM_RESET_LEN    300
 #define WS2812_PWM_DATA_LEN    (MATRIX_N * 3 * 8)
 #define WS2812_PWM_BUFFER_SIZE  (WS2812_PWM_PREP_LEN + WS2812_PWM_DATA_LEN + WS2812_PWM_RESET_LEN)
 #define WS2812_PWM_SEQ_LEN      WS2812_PWM_BUFFER_SIZE
@@ -39,8 +39,6 @@ static nrf_pwm_values_common_t g_pwm_buffer[WS2812_PWM_BUFFER_SIZE];
 /* When true, handler restarts sequence (continuous DMA). When false, one-shot (e.g. test). */
 static volatile bool m_dma_loop_running = false;
 static volatile bool m_pwm_transfer_complete = false;
-
-static void pwm_restart_sequence(void);
 
 /**
  * @brief PWM event handler - when sequence ends: restart if loop mode, else set complete flag
@@ -81,7 +79,7 @@ static void encode_ws2812_byte(uint8_t byte, nrf_pwm_values_common_t *pwm_buffer
         else
         {
             // Bit '0': HIGH 0.3us = 5 cycles out of 20 (312.5ns)
-            *(pwm_buffer++) = 15;
+            *(pwm_buffer++) = 14;
         }
     }
 }
@@ -118,6 +116,7 @@ void matrix_spi_init(void)
     // Prepare buffer (all off) and start DMA loop (runs forever; handler restarts sequence)
     m_dma_loop_running = true;
     matrix_clear();
+    matrix_fill(5, 5, 5);
     matrix_show();
     pwm_restart_sequence();
 }
@@ -182,14 +181,14 @@ void matrix_show(void)
 {
     uint16_t idx = 0;
     for (uint16_t i = 0; i < WS2812_PWM_PREP_LEN; i++)
-        g_pwm_buffer[idx++] = 21;
+        g_pwm_buffer[idx++] = 20;
     for (uint16_t i = 0; i < sizeof(g_fb); i++)
     {
         encode_ws2812_byte(g_fb[i], &g_pwm_buffer[idx]);
         idx += 8;
     }
     for (uint16_t i = 0; i < WS2812_PWM_RESET_LEN; i++)
-        g_pwm_buffer[idx++] = 21;
+        g_pwm_buffer[idx++] = 20;
 }
 
 /**
