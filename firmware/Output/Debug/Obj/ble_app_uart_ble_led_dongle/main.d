@@ -1,5 +1,5 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\main.c \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\main.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL_ConfDefaults.h \
@@ -35,7 +35,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gattc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/ble_gatts.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/compiler_abstraction.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_os.h \
@@ -101,9 +101,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_sd_def.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_soc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/nrfx_errors.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/custom_board.h \
- C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/pca10040.h \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/custom_board.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/pwr_mgmt/nrf_pwr_mgmt.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_uart.h \
@@ -119,4 +117,4 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.h
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h

@@ -81,6 +81,7 @@ void matrix_test_single_led(uint8_t r, uint8_t g, uint8_t b);
 
 /** Initialize SPI for WS2812 control. Must be called before matrix_show(). */
 void matrix_spi_init(void);
+void pwm_restart_sequence();
 
 /** Delay ~1s; uses same timing scale as WS2812. */
 void matrix_delay_1sec(void);

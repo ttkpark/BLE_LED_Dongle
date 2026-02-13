@@ -1,0 +1,13 @@
+{
+  "cmd": "set_animation_chunk",
+  "id": 2002,
+  "data": {
+    "chunk_id": 0,
+    "total_chunks": 5,
+    "frame_start": 0,
+    "frame_count": 20,
+    "format": "base64",
+    "frames": "AACAgICA...",
+    "durations": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+  }
+}

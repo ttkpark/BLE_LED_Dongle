@@ -1,6 +1,6 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.c \
- C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.c \
+ C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52810.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/toolchain/cmsis/include/core_cm4.h \
@@ -75,6 +75,6 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/led_matrix.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/memobj/nrf_memobj.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
- C:\Users\GH\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_pwm.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_pwm.h
