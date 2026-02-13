@@ -1,7 +1,7 @@
 Output/Debug/Obj/ble_app_uart_ble_led_dongle/app_timer2.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/timer/app_timer2.c \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/timer/app_timer.h \
- C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/__SEGGER_RTL.h \

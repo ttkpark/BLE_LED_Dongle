@@ -89,12 +89,12 @@
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_clock.c" />
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_gpiote.c" />
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/prs/nrfx_prs.c" />
+      <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_pwm.c" />
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_spi.c" />
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uart.c">
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uarte.c" />
-      <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_pwm.c" />
     </folder>
     <folder Name="nRF_Libraries">
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.c" />
@@ -134,7 +134,9 @@
     <folder Name="nRF_Segger_RTT">
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT.c" />
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_printf.c" />
-      <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" />
+      <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
     </folder>
     <folder Name="nRF_SoftDevice">
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.c" />

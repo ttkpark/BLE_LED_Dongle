@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-#define MATRIX_W       12
+#define MATRIX_W       1
 #define MATRIX_H       12
 #define MATRIX_N       (MATRIX_W * MATRIX_H)
 

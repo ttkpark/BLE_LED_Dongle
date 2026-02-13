@@ -35,7 +35,7 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/ble_conn_state.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/atomic/nrf_atomic.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/string.h \
- C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/compiler_abstraction.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_os.h \

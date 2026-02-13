@@ -64,12 +64,12 @@ static void encode_ws2812_byte(uint8_t byte, nrf_pwm_values_common_t *pwm_buffer
         if (byte & (1 << bit))
         {
             // Bit '1': HIGH 0.6us = 10 cycles out of 20 (625ns)
-            *pwm_buffer++ = 10;
+            *(pwm_buffer++) = 10;
         }
         else
         {
             // Bit '0': HIGH 0.3us = 5 cycles out of 20 (312.5ns)
-            *pwm_buffer++ = 5;
+            *(pwm_buffer++) = 5;
         }
     }
 }
@@ -87,8 +87,7 @@ void matrix_spi_init(void)
     m_pwm.drv_inst_idx = 0;
     
     nrfx_pwm_config_t pwm_config = NRFX_PWM_DEFAULT_CONFIG;
-    // PWM inverted for WS2812 - when PWM is LOW, output is HIGH (idle state)
-    pwm_config.output_pins[0] = MATRIX_DATA_PIN | NRFX_PWM_PIN_INVERTED;
+    pwm_config.output_pins[0] = MATRIX_DATA_PIN;
     pwm_config.output_pins[1] = NRFX_PWM_PIN_NOT_USED;
     pwm_config.output_pins[2] = NRFX_PWM_PIN_NOT_USED;
     pwm_config.output_pins[3] = NRFX_PWM_PIN_NOT_USED;
@@ -117,14 +116,14 @@ void matrix_spi_init(void)
     }
     
     // Stop PWM and uninitialize to prevent any further signals
-    nrfx_pwm_stop(&m_pwm, true);  // Stop PWM and wait until stopped
-    nrfx_pwm_uninit(&m_pwm);      // Uninitialize PWM
+   // nrfx_pwm_stop(&m_pwm, true);  // Stop PWM and wait until stopped
+    //nrfx_pwm_uninit(&m_pwm);      // Uninitialize PWM
     
     // Set pin to GPIO LOW to ensure no signal
-    nrf_gpio_cfg_output(MATRIX_DATA_PIN);
-    nrf_gpio_pin_clear(MATRIX_DATA_PIN);
+    //nrf_gpio_cfg_output(MATRIX_DATA_PIN);
+    //nrf_gpio_pin_clear(MATRIX_DATA_PIN);
     
-    NRF_LOG_INFO("All LEDs set to OFF, PWM stopped and pin set to GPIO LOW");
+    //NRF_LOG_INFO("All LEDs set to OFF, PWM stopped and pin set to GPIO LOW");
 }
 
 void matrix_set_pixel(uint8_t row, uint8_t col, uint8_t r, uint8_t g, uint8_t b)
@@ -249,6 +248,7 @@ void matrix_show(void)
     
     // Encode all LED data to PWM values
     // Each WS2812 byte (8 bits) becomes 8 PWM values (one per WS2812 bit)
+    g_pwm_buffer[pwm_idx++] = 20;
     for (uint16_t i = 0; i < sizeof(g_fb); i++)
     {
         encode_ws2812_byte(g_fb[i], &g_pwm_buffer[pwm_idx]);

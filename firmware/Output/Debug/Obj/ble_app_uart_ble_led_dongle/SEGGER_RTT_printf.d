@@ -36,6 +36,6 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/SEGGER_RTT_printf.o: \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/headers/nrf_error.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/nordic_common.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/app_error_weak.h \
- C:/Users/parkg/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
+ C:/Users/GH/Desktop/BLE_LED_Dongle/firmware/config/sdk_config.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdarg.h
