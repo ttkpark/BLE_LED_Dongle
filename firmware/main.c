@@ -70,13 +70,9 @@
 #include "bsp_btn_ble.h"
 #include "nrf_pwr_mgmt.h"
 
-#if defined (UART_PRESENT)
-#include "nrf_uart.h"
-#endif
-#if defined (UARTE_PRESENT)
-#include "nrf_uarte.h"
-#endif
 
+#include <math.h>
+#include <stdio.h>
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
@@ -108,11 +104,60 @@
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
-#define LED_UPDATE_INTERVAL_MS    500                                                /**< LED matrix update interval in milliseconds. Slower update to reduce BLE interference. */
+/** Send LED count over BLE at fixed interval (ms). Timer-based to avoid BLE TX buffer full (NRF_ERROR_RESOURCES). */
+#define BLE_SEND_COUNT_INTERVAL_MS      1000
+
+#define LED_UPDATE_INTERVAL_MS    5                                                /**< LED matrix update interval in milliseconds. Slower update to reduce BLE interference. */
 APP_TIMER_DEF(m_led_update_timer_id);                                               /**< Timer ID for LED matrix updates. */
+APP_TIMER_DEF(m_ble_send_count_timer_id);                                           /**< Timer ID for periodic BLE count send. */
 static volatile bool m_led_update_pending = false;                                  /**< Flag indicating LED matrix update is pending. */
-static volatile uint8_t m_led_pattern_counter = 0;                                  /**< Counter for LED pattern animation. */
+static volatile bool m_ble_send_count_pending = false;                              /**< Flag: send LED count over BLE on next idle (set by timer). */
+static volatile uint32_t m_led_pattern_counter = 0;                                  /**< Counter for LED pattern animation. */
 static volatile bool m_ble_event_processing = false;                                /**< Flag indicating BLE event is being processed. */
+
+/** Callback type for BLE NUS received command. App can parse and handle commands here. */
+typedef void (*ble_nus_cmd_callback_t)(const uint8_t * p_data, uint16_t length);
+static ble_nus_cmd_callback_t m_ble_nus_cmd_callback = NULL;
+
+/** Register callback for BLE NUS command reception. Pass NULL to disable. */
+void ble_nus_set_cmd_callback(ble_nus_cmd_callback_t callback)
+{
+    m_ble_nus_cmd_callback = callback;
+}
+
+/** Forward declaration: send LED matrix count over BLE NUS (defined below). */
+uint32_t ble_nus_send_led_matrix_count(uint32_t count);
+
+/**@brief Example command handler: parses received BLE data and handles simple commands.
+ *        "get_count" or "count" -> send current LED count over BLE.
+ *        Extend this or replace via ble_nus_set_cmd_callback() for more commands.
+ */
+static void ble_nus_cmd_received(const uint8_t * p_data, uint16_t length)
+{
+    if (p_data == NULL || length == 0) return;
+
+    /* Trim trailing CR/LF for comparison */
+    while (length > 0 && (p_data[length - 1] == '\r' || p_data[length - 1] == '\n'))
+        length--;
+
+    if (length == 9 && memcmp(p_data, "get_count", 9) == 0)
+    {
+        (void)ble_nus_send_led_matrix_count((uint32_t)m_led_pattern_counter);
+        NRF_LOG_INFO("RTT: cmd get_count -> sent count %lu", (unsigned long)m_led_pattern_counter);
+        NRF_LOG_FLUSH();
+        return;
+    }
+    if (length == 5 && memcmp(p_data, "count", 5) == 0)
+    {
+        (void)ble_nus_send_led_matrix_count((uint32_t)m_led_pattern_counter);
+        NRF_LOG_INFO("RTT: cmd count -> sent count %lu", (unsigned long)m_led_pattern_counter);
+        NRF_LOG_FLUSH();
+        return;
+    }
+
+    NRF_LOG_INFO("RTT: unknown cmd, len=%u", (unsigned)length);
+    NRF_LOG_FLUSH();
+}
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
@@ -152,11 +197,15 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 static void led_update_timer_handler(void * p_context)
 {
     (void)p_context;
-    
-    // Only set flag - actual update happens in main loop
-    // This prevents interrupting SoftDevice during critical BLE operations
     m_led_update_pending = true;
     m_led_pattern_counter++;
+}
+
+/**@brief Timer handler: request one BLE count send on next idle. Keeps send interval regular (avoids NRF_ERROR_RESOURCES). */
+static void ble_send_count_timer_handler(void * p_context)
+{
+    (void)p_context;
+    m_ble_send_count_pending = true;
 }
 
 /**@brief Function for initializing the timer module.
@@ -166,10 +215,14 @@ static void timers_init(void)
     ret_code_t err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
     
-    // Create timer for LED matrix updates
     err_code = app_timer_create(&m_led_update_timer_id,
                                  APP_TIMER_MODE_REPEATED,
                                  led_update_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_ble_send_count_timer_id,
+                                 APP_TIMER_MODE_REPEATED,
+                                 ble_send_count_timer_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -216,44 +269,59 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 }
 
 
+/**@brief Send LED matrix count over BLE NUS (GATT). Also logs to RTT.
+ *         Call when connected; no-op if disconnected.
+ * @param[in] count  LED pattern counter value to send.
+ * @return NRF_SUCCESS on success, or BLE error code.
+ */
+uint32_t ble_nus_send_led_matrix_count(uint32_t count)
+{
+    if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+    static uint8_t tx_buf[32];
+    int len = snprintf((char *)tx_buf, sizeof(tx_buf), "count:%lu\r\n", (unsigned long)count);
+    if (len <= 0 || (size_t)len >= sizeof(tx_buf))
+    {
+        return NRF_ERROR_DATA_SIZE;
+    }
+
+    uint16_t length = (uint16_t)len;
+    ret_code_t err_code = ble_nus_data_send(&m_nus, tx_buf, &length, m_conn_handle);
+
+    NRF_LOG_INFO("BLE TX [RTT]: count=%lu, len=%u, err=0x%x", (unsigned long)count, (unsigned)length, err_code);
+    NRF_LOG_FLUSH();
+
+    return err_code;
+}
+
+
 /**@brief Function for handling the data from the Nordic UART Service.
  *
- * @details This function will process the data received from the Nordic UART BLE Service and send
- *          it to the UART module.
+ * @details This function will process the data received from the Nordic UART BLE Service,
+ *          log to RTT, and invoke the command callback for application handling.
  *
  * @param[in] p_evt       Nordic UART Service event.
  */
 /**@snippet [Handling the data received over BLE] */
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
-
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
-        uint32_t err_code;
+        const uint8_t * p_data = p_evt->params.rx_data.p_data;
+        uint16_t length = p_evt->params.rx_data.length;
 
-        NRF_LOG_INFO("Received data from BLE NUS. Writing data via RTT.");
-        NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
+        NRF_LOG_INFO("BLE RX [RTT]: len=%u", (unsigned)length);
+        NRF_LOG_HEXDUMP_DEBUG(p_data, length);
+        NRF_LOG_FLUSH();
 
-        // UART disabled - using RTT only
-        // Print received data via RTT (already logged above)
-        // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-        // {
-        //     do
-        //     {
-        //         err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
-        //         if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-        //         {
-        //             NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
-        //             APP_ERROR_CHECK(err_code);
-        //         }
-        //     } while (err_code == NRF_ERROR_BUSY);
-        // }
-        // if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
-        // {
-        //     while (app_uart_put('\n') == NRF_ERROR_BUSY);
-        // }
+        if (m_ble_nus_cmd_callback != NULL)
+        {
+            m_ble_nus_cmd_callback(p_data, length);
+        }
     }
-
 }
 /**@snippet [Handling the data received over BLE] */
 
@@ -279,6 +347,8 @@ static void services_init(void)
 
     err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
+
+    ble_nus_set_cmd_callback(ble_nus_cmd_received);
 }
 
 
@@ -804,52 +874,33 @@ static void power_management_init(void)
  */
 static void idle_state_handle(void)
 {
-    // LED matrix update disabled - LED is updated only once at boot
-    // Periodic update code commented out to prevent confusion
-    /*
-    // Handle LED matrix update if pending, but only when safe:
-    // 1. BLE event is not being processed
-    // 2. SoftDevice is enabled and not suspended
-    // 3. No active BLE connection (optional - can be removed if LED updates during connection are needed)
+    // Handle LED matrix update if pending (memory only - safe with SoftDevice)
     if (m_led_update_pending && !m_ble_event_processing)
     {
-        // Check if SoftDevice is enabled and not suspended before updating LED
-        // This ensures we don't interrupt SoftDevice during critical operations
         if (nrf_sdh_is_enabled() && !nrf_sdh_is_suspended())
         {
             m_led_update_pending = false;
+            //matrix_rainbow((uint8_t)m_led_pattern_counter);
+            m_led_pattern_counter;
             
-            // Update LED matrix pattern
-            if (m_led_pattern_counter % 4 == 0)
-            {
-                // All LEDs green
-                matrix_fill(0, 30, 0);
+            float amp = 4.2f;
+            float phi = M_PI*2/3;
+            for (uint16_t i = 0; i < MATRIX_N; i++){
+                float phase = M_PI*2*((m_led_pattern_counter%500)/500.f + (i/12)/12.f + (i%12)/12.f);
+                matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), amp*(sin(phase)+1.f), amp*(sin(phase+phi)+1.f), amp*(sin(phase+phi*2)+1.f));
             }
-            else if (m_led_pattern_counter % 4 == 1)
-            {
-                // All LEDs red
-                matrix_fill(30, 0, 0);
-            }
-            else if (m_led_pattern_counter % 4 == 2)
-            {
-                // All LEDs blue
-                matrix_fill(0, 0, 30);
-            }
-            else
-            {
-                // Clear
-                matrix_clear();
-            }
-            
-            // Update LED matrix
-            // matrix_show() will check SoftDevice state again and skip if busy
-            // This gives SoftDevice priority - if it becomes busy, LED update is skipped
+
             matrix_show();
+
+            /* Send LED count over BLE at fixed interval (timer-driven) to avoid NRF_ERROR_RESOURCES. */
+            if (m_ble_send_count_pending && m_conn_handle != BLE_CONN_HANDLE_INVALID)
+            {
+                m_ble_send_count_pending = false;
+                (void)ble_nus_send_led_matrix_count((uint32_t)m_led_pattern_counter);
+            }
         }
-        // If SoftDevice is busy, keep the flag set and try again in next iteration
     }
-    */
-    
+
     if (NRF_LOG_PROCESS() == false)
     {
         nrf_pwr_mgmt_run();
@@ -878,6 +929,7 @@ static void advertising_start(void)
 /**@brief Application main function.
  */
 int main(void)
+
 {
     bool erase_bonds;
 
@@ -914,16 +966,20 @@ int main(void)
     // Test function commented out - only initialization (zeros) is sent
     // matrix_test_single_led(0, 10, 0);
     
-    // LED matrix update timer disabled - LED is updated only once at boot
-    // Timer start code commented out to prevent periodic updates
-    // ret_code_t err_code = app_timer_start(m_led_update_timer_id,
-    //                                        APP_TIMER_TICKS(LED_UPDATE_INTERVAL_MS),
-    //                                        NULL);
-    // APP_ERROR_CHECK(err_code);
-    // NRF_LOG_INFO("LED matrix update timer started (%d ms interval)", LED_UPDATE_INTERVAL_MS);
-    NRF_LOG_INFO("LED matrix update timer disabled - single update at boot only");
+    ret_code_t err_code = app_timer_start(m_led_update_timer_id,
+                                           APP_TIMER_TICKS(LED_UPDATE_INTERVAL_MS),
+                                           NULL);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("LED matrix update timer started (%d ms interval)", LED_UPDATE_INTERVAL_MS);
     NRF_LOG_FLUSH();
-    
+
+    err_code = app_timer_start(m_ble_send_count_timer_id,
+                               APP_TIMER_TICKS(BLE_SEND_COUNT_INTERVAL_MS),
+                               NULL);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("BLE count send timer started (%d ms interval)", BLE_SEND_COUNT_INTERVAL_MS);
+    NRF_LOG_FLUSH();
+
     advertising_start();
 
     // Enter main loop.

@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-#define MATRIX_W       1
+#define MATRIX_W       12
 #define MATRIX_H       12
 #define MATRIX_N       (MATRIX_W * MATRIX_H)
 
@@ -71,20 +71,17 @@
 
 /* RGB 0..255. Stored as GRB for WS2812. */
 void matrix_set_pixel(uint8_t row, uint8_t col, uint8_t r, uint8_t g, uint8_t b);
-void matrix_clear(void);
 void matrix_draw_x(uint8_t r, uint8_t g, uint8_t b);
+void matrix_clear(void);
 void matrix_show(void);
 void matrix_draw_first_led_only(uint8_t r, uint8_t g, uint8_t b);
 void matrix_fill(uint8_t r, uint8_t g, uint8_t b);
-/** Test function: Send only first LED with detailed logging for debugging */
+/** Fill with rainbow and push to DMA buffer (memory only). Call periodically with phase 0..255. */
+void matrix_rainbow(uint8_t phase);
+/** Test function: Send only first LED (one-shot). */
 void matrix_test_single_led(uint8_t r, uint8_t g, uint8_t b);
 
 /** Initialize SPI for WS2812 control. Must be called before matrix_show(). */
 void matrix_spi_init(void);
 
-/** Delay ~1s; uses same timing scale as WS2812. */
-void matrix_delay_1sec(void);
-
-/** One periodic update: fill panel with (dim,dim,dim) and show (all LED output here). */
-void matrix_update_once(uint8_t dim);
 #endif

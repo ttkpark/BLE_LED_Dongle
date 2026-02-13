@@ -26,24 +26,32 @@ static uint8_t g_fb[MATRIX_N * 3];
 static nrfx_pwm_t m_pwm;
 
 /* PWM buffer: Each WS2812 bit = 1 PWM sequence value
- * 144 LEDs × 3 bytes × 8 bits = 3,456 PWM values
- * Plus reset pulse: ~400 PWM values of zeros (500us at 1.25us per value)
+ * 1 leading + 144 LEDs × 3 bytes × 8 bits = 3,456 + 400 reset
  */
-#define WS2812_PWM_BUFFER_SIZE  (MATRIX_N * 3 * 8 + 400)
+#define WS2812_PWM_PREP_LEN     10
+#define WS2812_PWM_RESET_LEN    200
+#define WS2812_PWM_DATA_LEN    (MATRIX_N * 3 * 8)
+#define WS2812_PWM_BUFFER_SIZE  (WS2812_PWM_PREP_LEN + WS2812_PWM_DATA_LEN + WS2812_PWM_RESET_LEN)
+#define WS2812_PWM_SEQ_LEN      WS2812_PWM_BUFFER_SIZE
+
 static nrf_pwm_values_common_t g_pwm_buffer[WS2812_PWM_BUFFER_SIZE];
 
-/* Flag to track PWM transfer completion */
+/* When true, handler restarts sequence (continuous DMA). When false, one-shot (e.g. test). */
+static volatile bool m_dma_loop_running = false;
 static volatile bool m_pwm_transfer_complete = false;
 
+static void pwm_restart_sequence(void);
+
 /**
- * @brief PWM event handler - called when transfer completes
+ * @brief PWM event handler - when sequence ends: restart if loop mode, else set complete flag
  */
 static void pwm_event_handler(nrfx_pwm_evt_type_t event_type)
 {
-    if (event_type == NRFX_PWM_EVT_FINISHED)
-    {
+    if (event_type != NRFX_PWM_EVT_FINISHED) return;
+    if (m_dma_loop_running)
+        pwm_restart_sequence();
+    else
         m_pwm_transfer_complete = true;
-    }
 }
 
 /**
@@ -57,6 +65,10 @@ static void pwm_event_handler(nrfx_pwm_evt_type_t event_type)
  * @param byte WS2812 data byte (GRB format)
  * @param pwm_buffer Output buffer for PWM values (8 values for 8 bits)
  */
+
+ 
+// 1 : normal
+// 0 : short HIGH
 static void encode_ws2812_byte(uint8_t byte, nrf_pwm_values_common_t *pwm_buffer)
 {
     for (int8_t bit = 7; bit >= 0; bit--)
@@ -69,7 +81,7 @@ static void encode_ws2812_byte(uint8_t byte, nrf_pwm_values_common_t *pwm_buffer
         else
         {
             // Bit '0': HIGH 0.3us = 5 cycles out of 20 (312.5ns)
-            *(pwm_buffer++) = 5;
+            *(pwm_buffer++) = 15;
         }
     }
 }
@@ -87,7 +99,7 @@ void matrix_spi_init(void)
     m_pwm.drv_inst_idx = 0;
     
     nrfx_pwm_config_t pwm_config = NRFX_PWM_DEFAULT_CONFIG;
-    pwm_config.output_pins[0] = MATRIX_DATA_PIN;
+    pwm_config.output_pins[0] = MATRIX_DATA_PIN | WS2812_INVERT_DATA;
     pwm_config.output_pins[1] = NRFX_PWM_PIN_NOT_USED;
     pwm_config.output_pins[2] = NRFX_PWM_PIN_NOT_USED;
     pwm_config.output_pins[3] = NRFX_PWM_PIN_NOT_USED;
@@ -103,27 +115,11 @@ void matrix_spi_init(void)
     
     NRF_LOG_INFO("PWM initialized for WS2812 on pin %d", MATRIX_DATA_PIN);
     
-    // Immediately send all zeros to turn off all LEDs
-    // This prevents PWM from sending default values that might turn on LEDs
+    // Prepare buffer (all off) and start DMA loop (runs forever; handler restarts sequence)
+    m_dma_loop_running = true;
     matrix_clear();
     matrix_show();
-    
-    // Wait for transfer to complete
-    uint32_t timeout = 1000000;
-    while (!m_pwm_transfer_complete && timeout--)
-    {
-        __NOP();
-    }
-    
-    // Stop PWM and uninitialize to prevent any further signals
-   // nrfx_pwm_stop(&m_pwm, true);  // Stop PWM and wait until stopped
-    //nrfx_pwm_uninit(&m_pwm);      // Uninitialize PWM
-    
-    // Set pin to GPIO LOW to ensure no signal
-    //nrf_gpio_cfg_output(MATRIX_DATA_PIN);
-    //nrf_gpio_pin_clear(MATRIX_DATA_PIN);
-    
-    //NRF_LOG_INFO("All LEDs set to OFF, PWM stopped and pin set to GPIO LOW");
+    pwm_restart_sequence();
 }
 
 void matrix_set_pixel(uint8_t row, uint8_t col, uint8_t r, uint8_t g, uint8_t b)
@@ -160,77 +156,6 @@ void matrix_draw_first_led_only(uint8_t r, uint8_t g, uint8_t b)
     g_fb[2] = b;
 }
 
-/**
- * @brief Test function: Send only first LED with detailed logging
- * This helps debug WS2812 encoding issues
- */
-void matrix_test_single_led(uint8_t r, uint8_t g, uint8_t b)
-{
-    matrix_clear();
-    g_fb[0] = g;  // GRB format: Green first
-    g_fb[1] = r;  // Red second
-    g_fb[2] = b;  // Blue third
-    
-    NRF_LOG_INFO("Test LED: R=%d, G=%d, B=%d", r, g, b);
-    NRF_LOG_INFO("Frame buffer: [0]=0x%02X(G), [1]=0x%02X(R), [2]=0x%02X(B)", 
-                 g_fb[0], g_fb[1], g_fb[2]);
-    
-    // Encode first byte (Green) and log PWM values
-    uint16_t pwm_idx = 0;
-    encode_ws2812_byte(g_fb[0], &g_pwm_buffer[pwm_idx]);
-    
-    NRF_LOG_INFO("Green byte 0x%02X -> PWM values:", g_fb[0]);
-    for (int i = 0; i < 8; i++)
-    {
-        NRF_LOG_INFO("  Bit %d: PWM=%d", 7-i, g_pwm_buffer[pwm_idx + i]);
-    }
-    
-    pwm_idx += 8;
-    encode_ws2812_byte(g_fb[1], &g_pwm_buffer[pwm_idx]);  // Red
-    pwm_idx += 8;
-    encode_ws2812_byte(g_fb[2], &g_pwm_buffer[pwm_idx]);  // Blue
-    pwm_idx += 8;
-    
-    // Add reset pulse: ~400 PWM values of zeros (500us at 1.25us per value)
-    for (uint16_t i = 0; i < 400; i++)
-    {
-        g_pwm_buffer[pwm_idx++] = 0;
-    }
-    
-    NRF_LOG_INFO("Total PWM values: %d (3 bytes * 8 bits + 400 reset)", pwm_idx);
-    
-    // Reset transfer complete flag
-    m_pwm_transfer_complete = false;
-    
-    // Configure PWM sequence
-    nrf_pwm_sequence_t pwm_sequence;
-    pwm_sequence.values.p_common = g_pwm_buffer;
-    pwm_sequence.length = pwm_idx;
-    pwm_sequence.repeats = 0;
-    pwm_sequence.end_delay = 0;
-    
-    // Start PWM transfer
-    (void)nrfx_pwm_simple_playback(&m_pwm, &pwm_sequence, 1, NRFX_PWM_FLAG_STOP);
-    
-    // Wait for transfer to complete
-    uint32_t timeout = 1000000;
-    while (!m_pwm_transfer_complete && timeout--)
-    {
-        __NOP();
-    }
-    
-    if (m_pwm_transfer_complete)
-    {
-        NRF_LOG_INFO("Test LED sent via PWM");
-    }
-    else
-    {
-        NRF_LOG_ERROR("PWM transfer timeout");
-    }
-    
-    NRF_LOG_FLUSH();
-}
-
 void matrix_fill(uint8_t r, uint8_t g, uint8_t b)
 {
     for (uint16_t i = 0; i < MATRIX_N; i++)
@@ -238,74 +163,46 @@ void matrix_fill(uint8_t r, uint8_t g, uint8_t b)
 }
 
 /**
- * @brief Send LED matrix data via PWM EasyDMA
- * This function uses PWM EasyDMA to automatically send WS2812 protocol.
- * No interrupt disabling needed - works seamlessly with SoftDevice.
+ * @brief Restart PWM sequence (called from event handler for continuous DMA)
+ */
+void pwm_restart_sequence(void)
+{
+    nrf_pwm_sequence_t seq;
+    seq.values.p_common = g_pwm_buffer;
+    seq.length = WS2812_PWM_SEQ_LEN;
+    seq.repeats = 0;
+    seq.end_delay = 0;
+    (void)nrfx_pwm_simple_playback(&m_pwm, &seq, 1, 0);
+}
+
+/**
+ * @brief Prepare DMA buffer from g_fb (memory only). Call periodically; running DMA uses new data next loop.
  */
 void matrix_show(void)
 {
-    uint16_t pwm_idx = 0;
-    
-    // Encode all LED data to PWM values
-    // Each WS2812 byte (8 bits) becomes 8 PWM values (one per WS2812 bit)
-    g_pwm_buffer[pwm_idx++] = 20;
+    uint16_t idx = 0;
+    for (uint16_t i = 0; i < WS2812_PWM_PREP_LEN; i++)
+        g_pwm_buffer[idx++] = 21;
     for (uint16_t i = 0; i < sizeof(g_fb); i++)
     {
-        encode_ws2812_byte(g_fb[i], &g_pwm_buffer[pwm_idx]);
-        pwm_idx += 8;  // 8 WS2812 bits = 8 PWM values
+        encode_ws2812_byte(g_fb[i], &g_pwm_buffer[idx]);
+        idx += 8;
     }
-    
-    // Add reset pulse: ~400 PWM values of zeros (500us at 1.25us per value)
-    // WS2812 requires >50us reset, we use 500us for safety
-    for (uint16_t i = 0; i < 400; i++)
-    {
-        g_pwm_buffer[pwm_idx++] = 0;
-    }
-    
-    // Reset transfer complete flag
-    m_pwm_transfer_complete = false;
-    
-    // Configure PWM sequence
-    nrf_pwm_sequence_t pwm_sequence;
-    pwm_sequence.values.p_common = g_pwm_buffer;
-    pwm_sequence.length = pwm_idx;
-    pwm_sequence.repeats = 0;
-    pwm_sequence.end_delay = 0;
-    
-    // Start PWM transfer using EasyDMA
-    // This will automatically send data without CPU intervention
-    // nrfx_pwm_simple_playback returns task ID (uint32_t), not error code
-    (void)nrfx_pwm_simple_playback(&m_pwm, &pwm_sequence, 1, NRFX_PWM_FLAG_STOP);
-    
-    // Wait for transfer to complete (non-blocking, but we wait here for now)
-    // In the future, this could be made fully asynchronous
-    uint32_t timeout = 1000000;  // 1 second timeout
-    while (!m_pwm_transfer_complete && timeout--)
-    {
-        __NOP();
-    }
-    
-    if (m_pwm_transfer_complete)
-    {
-        NRF_LOG_INFO("matrix frame sent via PWM EasyDMA");
-    }
-    else
-    {
-        NRF_LOG_ERROR("PWM transfer timeout");
-    }
+    for (uint16_t i = 0; i < WS2812_PWM_RESET_LEN; i++)
+        g_pwm_buffer[idx++] = 21;
 }
 
-void matrix_delay_1sec(void)
+/**
+ * @brief Fill matrix with rainbow and push to DMA buffer (memory only). Call periodically for animation.
+ * @param phase 0..255, increment each frame.
+ */
+void matrix_rainbow(uint8_t phase)
 {
-    // Simple delay - can be improved with app_timer if needed
-    for (volatile uint32_t i = 0; i < 1000000; i++)
+    for (uint16_t i = 0; i < MATRIX_N; i++)
     {
-        __NOP();
+        uint8_t r, g, b;
+        r = g = b = (phase/10)%5;
+        matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), r, g, b);
     }
-}
-
-void matrix_update_once(uint8_t dim)
-{
-    matrix_fill(dim, dim, dim);
     matrix_show();
 }
