@@ -79,6 +79,7 @@
 #include "nrf_gpio.h"
 #include "led_matrix.h"
 #include "app_timer.h"
+#include "json_protocol.h"
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
@@ -128,26 +129,43 @@ void ble_nus_set_cmd_callback(ble_nus_cmd_callback_t callback)
 /** Forward declaration: send LED matrix count over BLE NUS (defined below). */
 uint32_t ble_nus_send_led_matrix_count(uint32_t count);
 
-/**@brief Example command handler: parses received BLE data and handles simple commands.
- *        "get_count" or "count" -> send current LED count over BLE.
- *        Extend this or replace via ble_nus_set_cmd_callback() for more commands.
+/**@brief Command handler: processes JSON commands from Flutter app.
+ *        Supports both legacy text commands and new JSON protocol.
  */
 static void ble_nus_cmd_received(const uint8_t * p_data, uint16_t length)
 {
     if (p_data == NULL || length == 0) return;
 
     /* Trim trailing CR/LF for comparison */
-    while (length > 0 && (p_data[length - 1] == '\r' || p_data[length - 1] == '\n'))
-        length--;
+    uint16_t trimmed_length = length;
+    while (trimmed_length > 0 && (p_data[trimmed_length - 1] == '\r' || p_data[trimmed_length - 1] == '\n'))
+        trimmed_length--;
 
-    if (length == 9 && memcmp(p_data, "get_count", 9) == 0)
+    // Check if we're already receiving JSON data
+    if (json_protocol_is_active())
+    {
+        // Continue JSON protocol processing
+        json_protocol_process(p_data, trimmed_length);
+        return;
+    }
+
+    // Check if it's JSON (starts with '{')
+    if (trimmed_length > 0 && p_data[0] == '{')
+    {
+        // JSON protocol - handles multi-packet internally
+        json_protocol_process(p_data, trimmed_length);
+        return;
+    }
+
+    // Legacy text commands (for backward compatibility)
+    if (trimmed_length == 9 && memcmp(p_data, "get_count", 9) == 0)
     {
         (void)ble_nus_send_led_matrix_count((uint32_t)m_led_pattern_counter);
         NRF_LOG_INFO("RTT: cmd get_count -> sent count %lu", (unsigned long)m_led_pattern_counter);
         NRF_LOG_FLUSH();
         return;
     }
-    if (length == 5 && memcmp(p_data, "count", 5) == 0)
+    if (trimmed_length == 5 && memcmp(p_data, "count", 5) == 0)
     {
         (void)ble_nus_send_led_matrix_count((uint32_t)m_led_pattern_counter);
         NRF_LOG_INFO("RTT: cmd count -> sent count %lu", (unsigned long)m_led_pattern_counter);
@@ -155,7 +173,7 @@ static void ble_nus_cmd_received(const uint8_t * p_data, uint16_t length)
         return;
     }
 
-    NRF_LOG_INFO("RTT: unknown cmd, len=%u", (unsigned)length);
+    NRF_LOG_INFO("RTT: unknown cmd, len=%u", (unsigned)trimmed_length);
     NRF_LOG_FLUSH();
 }
 
@@ -164,7 +182,13 @@ NRF_BLE_GATT_DEF(m_gatt);                                                       
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
 
-static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
+uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
+
+/**@brief Get BLE NUS instance pointer for JSON protocol module */
+ble_nus_t* get_ble_nus_instance(void)
+{
+    return &m_nus;
+}
 static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 static ble_uuid_t m_adv_uuids[]          =                                          /**< Universally unique service identifier. */
 {
@@ -880,18 +904,21 @@ static void idle_state_handle(void)
         if (nrf_sdh_is_enabled() && !nrf_sdh_is_suspended())
         {
             m_led_update_pending = false;
-            //matrix_rainbow((uint8_t)m_led_pattern_counter);
-            m_led_pattern_counter;
             
-            float amp = 5.f;
-            float phi = M_PI*2/3;
-            for (uint16_t i = 0; i < MATRIX_N; i++){
-                float phase = M_PI*2*((m_led_pattern_counter%60)/60.f + (i/12)/12.f + (i%12)/12.f);
-                matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), amp*(sin(phase)+1.2f), amp*(sin(phase+phi)+1.2f), amp*(sin(phase+phi*2)+1.2f));
+            // Only show default pattern if in idle mode
+            if (get_display_mode() == DISPLAY_MODE_IDLE)
+            {
+                //matrix_rainbow((uint8_t)m_led_pattern_counter);
+                m_led_pattern_counter;
+                
+                float amp = 5.f;
+                float phi = M_PI*2/3;
+                for (uint16_t i = 0; i < MATRIX_N; i++){
+                    float phase = M_PI*2*((m_led_pattern_counter%60)/60.f + (i/12)/12.f + (i%12)/12.f);
+                    matrix_set_pixel((uint8_t)(i / MATRIX_W), (uint8_t)(i % MATRIX_W), amp*(sin(phase)+1.2f), amp*(sin(phase+phi)+1.2f), amp*(sin(phase+phi*2)+1.2f));
+                }
+                matrix_show();
             }
-            //uint8_t light = (m_led_pattern_counter/50)%5;
-            //matrix_fill(light, light, light);
-            matrix_show();
 
             /* Send LED count over BLE at fixed interval (timer-driven) to avoid NRF_ERROR_RESOURCES. */
             if (m_ble_send_count_pending && m_conn_handle != BLE_CONN_HANDLE_INVALID)
@@ -931,6 +958,7 @@ static void advertising_start(void)
  */
 int main(void)
 
+
 {
     bool erase_bonds;
 
@@ -949,6 +977,11 @@ int main(void)
     // Start execution.
     printf("\r\nUART started.\r\n");
     NRF_LOG_INFO("Debug logging for UART over RTT started.");
+    
+    // Initialize JSON protocol handler
+    json_protocol_init();
+    NRF_LOG_INFO("JSON protocol initialized");
+    NRF_LOG_FLUSH();
     
     // Now that SoftDevice is initialized, we can safely initialize GPIO pins
     // Initialize 5V enable pin (P0.09)

@@ -63,9 +63,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           for (int row = 0; row < 12; row++) {
             for (int col = 0; col < 12; col++) {
               final pixel = resized.getPixel(col, row);
-              final r = img.getRed(pixel);
-              final g = img.getGreen(pixel);
-              final b = img.getBlue(pixel);
+              final r = pixel.r.toInt();
+              final g = pixel.g.toInt();
+              final b = pixel.b.toInt();
               _image.setPixel(row, col, Pixel(r: r, g: g, b: b));
             }
           }
@@ -90,9 +90,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           for (int row = 0; row < 12; row++) {
             for (int col = 0; col < 12; col++) {
               final pixel = resized.getPixel(col, row);
-              final r = img.getRed(pixel);
-              final g = img.getGreen(pixel);
-              final b = img.getBlue(pixel);
+              final r = pixel.r.toInt();
+              final g = pixel.g.toInt();
+              final b = pixel.b.toInt();
               _image.setPixel(row, col, Pixel(r: r, g: g, b: b));
             }
           }
@@ -101,13 +101,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
-  Future<void> _clearImage() {
+  Future<void> _clearImage() async {
     setState(() {
       _image.clear();
     });
   }
 
-  Future<void> _fillImage() {
+  Future<void> _fillImage() async {
     setState(() {
       _image.fill(_currentColor);
     });

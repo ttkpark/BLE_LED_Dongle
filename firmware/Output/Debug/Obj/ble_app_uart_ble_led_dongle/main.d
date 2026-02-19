@@ -117,4 +117,5 @@ Output/Debug/Obj/ble_app_uart_ble_led_dongle/main.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ 8.26b/include/stdlib.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
  C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h \
- C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\led_matrix.h \
+ C:\Users\parkg\Desktop\BLE_LED_Dongle\firmware\json_protocol.h

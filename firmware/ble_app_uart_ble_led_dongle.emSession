@@ -59,11 +59,13 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="1" y="914" useTextEdit="1" path="main.c" left="0" selected="1" top="914" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="961" useTextEdit="1" path="main.c" left="0" selected="1" top="939" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="4" y="116" useTextEdit="1" path="led_matrix.c" left="0" top="94" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="15" y="443" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/apply_old_config.h" left="0" top="422" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="37" y="90" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" left="0" top="64" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="28" y="85" useTextEdit="1" path="led_matrix.h" left="0" top="62" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="28" y="85" useTextEdit="1" path="led_matrix.h" left="0" top="44" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="72" useTextEdit="1" path="json_protocol.c" left="0" top="51" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="71" useTextEdit="1" path="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf52810.s" left="0" top="53" codecName="Default"/>
  </Files>
  <EMStudioWindow activeProject="ble_app_uart_ble_led_dongle" fileDialogDefaultFilter="*.h" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="C:/Users/GH/Desktop/BLE_LED_Dongle/firmware" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

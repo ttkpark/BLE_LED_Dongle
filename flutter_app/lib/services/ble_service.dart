@@ -26,7 +26,11 @@ class BleService {
   Future<bool> connect(BluetoothDevice device) async {
     try {
       _device = device;
-      await device.connect(timeout: const Duration(seconds: 15));
+      await device.connect(
+        autoConnect: false,
+        timeout: const Duration(seconds: 15),
+        license: License.free,
+      );
       
       // MTU 협상
       await device.requestMtu(247);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/led_animation.dart';
 import '../models/led_image.dart';
+import '../models/pixel.dart';
 import '../services/ble_service.dart';
 import '../widgets/led_grid.dart';
 import '../widgets/color_picker_widget.dart';

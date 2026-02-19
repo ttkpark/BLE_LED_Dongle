@@ -21,7 +21,7 @@
       arm_endian="Little"
       arm_fp_abi="Soft"
       arm_fpu_type="Soft"
-      arm_linker_heap_size="2048"
+      arm_linker_heap_size="64"
       arm_linker_process_stack_size="0"
       arm_linker_stack_size="2048"
       arm_linker_treat_warnings_as_errors="No"
@@ -53,6 +53,12 @@
       <file file_name="led_matrix.h" />
       <file file_name="main.c" />
       <file file_name="config/sdk_config.h" />
+      <file file_name="json_parser.c" />
+      <file file_name="json_parser.h" />
+      <file file_name="base64.c" />
+      <file file_name="base64.h" />
+      <file file_name="json_protocol.c" />
+      <file file_name="json_protocol.h" />
     </folder>
     <folder Name="Board Definition">
       <file file_name="C:/nrf5_sdk/nRF5_SDK_17.1.0_ddde560/components/boards/boards.c" />

@@ -16,35 +16,92 @@ class _MainScreenState extends State<MainScreen> {
   List<BluetoothDevice> _devices = [];
   bool _isScanning = false;
   BluetoothDevice? _connectedDevice;
+  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _startScan();
+    _checkBluetoothState();
+    _setupBluetoothListeners();
   }
 
-  void _startScan() {
-    setState(() {
-      _isScanning = true;
-      _devices = [];
+  void _setupBluetoothListeners() {
+    // BLE 어댑터 상태 모니터링
+    FlutterBluePlus.adapterState.listen((state) {
+      setState(() {
+        _adapterState = state;
+      });
     });
 
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
-
+    // 스캔 결과 리스너
     FlutterBluePlus.scanResults.listen((results) {
-      setState(() {
-        _devices = results
-            .map((r) => r.device)
-            .where((d) => d.name.isNotEmpty && d.name.contains('Nordic'))
-            .toList();
-      });
+      if (mounted) {
+        setState(() {
+          _devices = results
+              .map((r) => r.device)
+              .where((d) => d.name.isNotEmpty && d.name.contains('Nordic'))
+              .toList();
+        });
+      }
     });
 
+    // 스캔 상태 리스너
     FlutterBluePlus.isScanning.listen((isScanning) {
-      setState(() {
-        _isScanning = isScanning;
-      });
+      if (mounted) {
+        setState(() {
+          _isScanning = isScanning;
+        });
+      }
     });
+  }
+
+  Future<void> _checkBluetoothState() async {
+    try {
+      final state = await FlutterBluePlus.adapterState.first;
+      setState(() {
+        _adapterState = state;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'BLE 상태 확인 실패: $e';
+      });
+    }
+  }
+
+  Future<void> _startScan() async {
+    if (_adapterState != BluetoothAdapterState.on) {
+      setState(() {
+        _errorMessage = '블루투스를 켜주세요';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('블루투스를 켜주세요')),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        _isScanning = true;
+        _devices = [];
+        _errorMessage = null;
+      });
+
+      await FlutterBluePlus.startScan(
+        timeout: const Duration(seconds: 4),
+        androidUsesFineLocation: false,
+      );
+    } catch (e) {
+      setState(() {
+        _isScanning = false;
+        _errorMessage = '스캔 시작 실패: $e';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('스캔 실패: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _connectDevice(BluetoothDevice device) async {
@@ -84,6 +141,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    FlutterBluePlus.stopScan();
     _bleService.dispose();
     super.dispose();
   }
@@ -106,12 +164,52 @@ class _MainScreenState extends State<MainScreen> {
           else
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: _startScan,
+              onPressed: _adapterState == BluetoothAdapterState.on ? _startScan : null,
             ),
         ],
       ),
       body: Column(
         children: [
+          // BLE 상태 표시
+          if (_adapterState != BluetoothAdapterState.on)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.orange.shade100,
+              child: Row(
+                children: [
+                  const Icon(Icons.warning, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _adapterState == BluetoothAdapterState.off
+                          ? '블루투스를 켜주세요'
+                          : 'BLE 초기화 중...',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // 에러 메시지 표시
+          if (_errorMessage != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.red.shade100,
+              child: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(fontSize: 14, color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // 연결 상태 표시
           Container(
             padding: const EdgeInsets.all(16),
@@ -142,31 +240,72 @@ class _MainScreenState extends State<MainScreen> {
 
           // 디바이스 목록
           Expanded(
-            child: _devices.isEmpty
+            child: _adapterState != BluetoothAdapterState.on
                 ? Center(
-                    child: _isScanning
-                        ? const Text('스캔 중...')
-                        : const Text('디바이스를 찾을 수 없습니다'),
-                  )
-                : ListView.builder(
-                    itemCount: _devices.length,
-                    itemBuilder: (context, index) {
-                      final device = _devices[index];
-                      final isConnected = _connectedDevice?.id == device.id;
-                      return ListTile(
-                        leading: Icon(
-                          isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
-                          color: isConnected ? Colors.green : Colors.grey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('블루투스를 켜주세요'),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('새로고침'),
+                          onPressed: _checkBluetoothState,
                         ),
-                        title: Text(device.name),
-                        subtitle: Text(device.id.toString()),
-                        trailing: isConnected
-                            ? const Icon(Icons.check, color: Colors.green)
-                            : const Icon(Icons.chevron_right),
-                        onTap: isConnected ? null : () => _connectDevice(device),
-                      );
-                    },
-                  ),
+                      ],
+                    ),
+                  )
+                : _devices.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_isScanning)
+                              const Column(
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('스캔 중...'),
+                                ],
+                              )
+                            else
+                              Column(
+                                children: [
+                                  const Icon(Icons.bluetooth_searching, size: 64, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  const Text('디바이스를 찾을 수 없습니다'),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.search),
+                                    label: const Text('스캔 시작'),
+                                    onPressed: _startScan,
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _devices.length,
+                        itemBuilder: (context, index) {
+                          final device = _devices[index];
+                          final isConnected = _connectedDevice?.id == device.id;
+                          return ListTile(
+                            leading: Icon(
+                              isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                              color: isConnected ? Colors.green : Colors.grey,
+                            ),
+                            title: Text(device.name),
+                            subtitle: Text(device.id.toString()),
+                            trailing: isConnected
+                                ? const Icon(Icons.check, color: Colors.green)
+                                : const Icon(Icons.chevron_right),
+                            onTap: isConnected ? null : () => _connectDevice(device),
+                          );
+                        },
+                      ),
           ),
 
           // 빠른 액션 버튼
